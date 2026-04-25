@@ -1,4 +1,4 @@
-import { registerUiMessages, type UiMessageValue } from '@/lib/uiMessages'
+import { registerUiMessages, type UiMessageValue, type UiMessageParams } from '@/lib/uiMessages'
 
 export const copilotZhMessages = {
   'copilot.scope.wholeBook': '全书研究',
