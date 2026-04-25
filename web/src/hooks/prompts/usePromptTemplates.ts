@@ -4,7 +4,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { promptKeys } from './keys'
 import { mockPromptTemplates } from '@/mocks/prompts'
-import type { CreatePromptInput, PromptTemplate, PromptVersion } from '@/types/prompts'
+import type { CreatePromptInput, PromptTemplate } from '@/types/prompts'
 
 export interface UpdatePromptTemplateInput {
   id: string
