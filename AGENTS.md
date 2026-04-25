@@ -26,13 +26,14 @@
 - **所有远端命令必须通过 SSH MCP 工具 `mcp__mcp-router__execute-command` 执行**。
 - SSH MCP 执行建议：一次批次不要超过 **5 条命令**，按步骤分批执行，便于定位失败点并避免超长会话。
 
-## Docker 开发环境（强制）
+## 开发与验证环境（强制）
 
-- 本项目在远端使用 **Docker / Docker Compose** 作为开发、构建与验证环境。
+- 后端、Docker 镜像、Docker Compose 服务的依赖安装、测试、构建与运行必须发生在远端 Docker 环境中。
+- 前端 `web/` 的构建与开发验证例外：直接在远端宿主机 `web/` 目录执行 `npm run build` 或 `npm run dev -- --host 0.0.0.0`，不使用 Node 容器。
 - **禁止在本机安装任何依赖**（如 `apt`、`npm`、`pip`、`uv` 等 install 操作）。
-- **禁止在远端宿主机直接安装项目依赖**。依赖安装、测试、构建应发生在 Docker 容器或一次性 Docker 容器内。
-- 本机仅用于代码读取与修改；涉及运行、构建、测试、lint、服务启动等操作，统一在远端 Docker 环境中执行。
-- 编译/验证前置门禁：先阅读本文件与 `CLAUDE.md`，确认 Docker/远端路径/命令边界后，再开始执行验证命令。
+- **禁止在远端宿主机直接安装后端项目依赖**。后端依赖安装、测试、构建应发生在 Docker 容器或一次性 Docker 容器内。
+- 本机仅用于代码读取与修改；后端运行、构建、测试、lint、服务启动等操作统一在远端 Docker 环境中执行；前端构建与 dev server 按上一条在远端宿主机执行。
+- 编译/验证前置门禁：先阅读本文件与 `CLAUDE.md`，确认后端 Docker 边界与前端宿主机 npm 边界后，再开始执行验证命令。
 
 ## 推荐工作流
 
@@ -73,9 +74,12 @@ docker compose up -d --build
 
 ### 查看服务状态与日志
 
+当前 Docker Compose 服务名为 `scngs`，远端默认容器名为 `novelwriter_scngs_1`。
+
 ```bash
 docker compose ps
 docker compose logs --tail=200 scngs
+docker exec -it novelwriter_scngs_1 bash
 ```
 
 ### 停止服务
@@ -89,8 +93,8 @@ docker compose down
 - 默认 `docker compose up -d --build` 使用生产镜像运行：镜像内包含后端 Python 环境与已构建的前端 `/app/static`，运行时只启动 `uvicorn`，由 FastAPI 同进程托管 API 与前端静态资源。
 - 生产镜像可以挂载后端代码到 `/app/app`，但默认命令没有 `--reload`，代码变更后需要重启容器才生效。
 - 生产镜像可以挂载已构建前端产物到 `/app/static`；直接挂载 `web/src` 不会自动构建为浏览器可访问页面。
-- 若需要前后端源码热更新，应使用开发模式：后端在 Docker 环境内以 `uvicorn app.main:app --reload --host 0.0.0.0 --port 8000` 启动，前端在 Node 容器内以 `npm run dev -- --host 0.0.0.0` 启动，并通过 Vite 代理 `/api` 到后端。
-- 开发模式中的依赖安装、测试、构建仍必须发生在远端 Docker 容器内；不得在本机或远端宿主机直接执行 `pip`、`uv`、`npm install` / `npm ci` 等安装操作。
+- 若需要前后端源码热更新，应使用开发模式：后端在 Docker 环境内以 `uvicorn app.main:app --reload --host 0.0.0.0 --port 8000` 启动，前端在远端宿主机 `web/` 目录以 `npm run dev -- --host 0.0.0.0` 启动，并通过 Vite 代理 `/api` 到后端。
+- 开发模式中的后端依赖安装、测试、构建仍必须发生在远端 Docker 容器内；前端构建与 dev server 直接在远端宿主机执行，不使用 Node 容器。
 
 ## 构建与验证（远端 Docker 环境）
 
@@ -121,25 +125,15 @@ docker run --rm \
 
 ### 前端（React/Vite）
 
-前端命令必须在 Docker 环境中执行，常用命令：
+前端构建验证与开发服务直接在远端宿主机执行，不使用 Node 容器：
 
 ```bash
-cd web
-npm ci
-npm run lint
-npm run test:run
+cd /home/haizh/software/novelwriter/web
 npm run build
+npm run dev -- --host 0.0.0.0
 ```
 
-示例（一次性 Node 容器）：
-
-```bash
-docker run --rm \
-  -v "$PWD:/workspace" \
-  -w /workspace/web \
-  node:20-slim \
-  bash -lc 'npm ci && npm run lint && npm run test:run && npm run build'
-```
+如需前端 lint 或单测，也在远端宿主机 `web/` 目录执行对应 npm script；不得在本机执行前端验证命令。
 
 ### Docker 镜像构建验证
 
