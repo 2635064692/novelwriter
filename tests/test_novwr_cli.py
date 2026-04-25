@@ -22,7 +22,7 @@ def test_build_env_file_includes_expected_defaults() -> None:
     env = parse_env_file(build_env_file())
 
     assert env["NOVWR_IMAGE"] == DEFAULT_IMAGE
-    assert env["NOVWR_BIND_HOST"] == "127.0.0.1"
+    assert env["NOVWR_BIND_HOST"] == "0.0.0.0"
     assert env["NOVWR_PORT"] == "8000"
     assert env["DEPLOY_MODE"] == "selfhost"
     assert env["JWT_SECRET_KEY"]
