@@ -1042,3 +1042,44 @@ class CopilotApplyResponse(BaseModel):
 
 class CopilotDismissRequest(BaseModel):
     suggestion_ids: List[str] = Field(min_length=1, max_length=50)
+
+
+# =============================================================================
+# Prompt Template Management
+# =============================================================================
+
+
+class PromptTemplateResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    key: str
+    template: str
+    description: Optional[str] = None
+    built_in: bool
+    category: str
+    version: int
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+class PromptTemplateUpdateRequest(BaseModel):
+    template: str
+    reason: Optional[str] = None
+
+
+class PromptVersionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    prompt_template_id: int
+    template: str
+    version: int
+    operator: str
+    reason: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+
+class PromptRollbackRequest(BaseModel):
+    version: int
+    reason: Optional[str] = None

@@ -13,6 +13,7 @@ from app.models import (  # noqa: F401 — ensure all models registered with Bas
     TokenUsage, User,
     WorldEntity, WorldEntityAttribute, WorldRelationship, WorldSystem,
     BootstrapJob, Exploration, ExplorationChapter,
+    PromptTemplate, PromptVersion,
 )
 
 config = context.config

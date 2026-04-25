@@ -511,3 +511,36 @@ class CopilotRun(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     session = relationship("CopilotSession", back_populates="runs")
+
+
+class PromptTemplate(Base):
+    __tablename__ = "prompt_templates"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    key = Column(String(50), unique=True, nullable=False, index=True)
+    template = Column(Text, nullable=False)
+    description = Column(Text, nullable=True)
+    built_in = Column(Boolean, nullable=False, default=True)
+    category = Column(String(50), nullable=False, default="generation")
+    version = Column(Integer, nullable=False, default=1)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    versions = relationship("PromptVersion", back_populates="template", cascade="all, delete-orphan")
+
+
+class PromptVersion(Base):
+    __tablename__ = "prompt_versions"
+    __table_args__ = (
+        Index("ix_prompt_versions_template_id_version", "prompt_template_id", "version"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    prompt_template_id = Column(Integer, ForeignKey("prompt_templates.id"), nullable=False)
+    template = Column(Text, nullable=False)
+    version = Column(Integer, nullable=False)
+    operator = Column(String(20), nullable=False, default="system")
+    reason = Column(String(255), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+    prompt_template = relationship("PromptTemplate", back_populates="versions")
