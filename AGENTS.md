@@ -69,7 +69,7 @@ cd /home/haizh/software/novelwriter
 docker compose up -d --build
 ```
 
-默认服务端口：`127.0.0.1:8000`。
+默认服务端口：`0.0.0.0:8000`（宿主机对外监听，按需用防火墙或反向代理收口）。
 
 ### 查看服务状态与日志
 

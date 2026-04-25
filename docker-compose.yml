@@ -4,8 +4,8 @@ services:
       context: .
       network: host
     ports:
-      # Default to localhost-only to keep selfhost mode private-by-default.
-      - "127.0.0.1:8000:8000"
+      # Default to all interfaces for remote selfhost access.
+      - "0.0.0.0:8000:8000"
     volumes:
       - scngs-data:/data
     environment:
