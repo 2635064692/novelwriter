@@ -13,7 +13,6 @@ import { useWorldEntities } from '@/hooks/world/useEntities'
 import { useWorldRelationships } from '@/hooks/world/useRelationships'
 import { useWorldSystems } from '@/hooks/world/useSystems'
 import { getWindowIndexCopilotStatusMeta } from '@/lib/windowIndexStatus'
-} from './novelCopilotChrome'
 import { setAtlasStudioOriginSearchParams } from '@/components/novel-shell/NovelShellRouteState'
 
 function ActionStrip({

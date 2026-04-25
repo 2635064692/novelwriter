@@ -16,6 +16,7 @@ export function StudioAssistantPanel({
   }
   className?: string
 }) {
+  return (
     <div className={cn('flex h-full min-h-0 flex-col', className)} data-testid="studio-assistant-rail">
       <div className="nw-scrollbar-thin min-h-0 flex-1 overflow-y-auto pr-1 space-y-1.5">
         {contextualCopilotAction ? (
