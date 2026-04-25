@@ -34,8 +34,7 @@ ENV UV_PYTHON_CACHE_DIR=/root/.cache/uv/python
 
 COPY .uv-version pyproject.toml uv.lock .python-version ./
 COPY scripts/setup_python_env.sh ./scripts/
-RUN --mount=type=cache,target=/root/.cache/uv \
-    VENV_DIR=/app/.venv ./scripts/setup_python_env.sh --no-dev
+RUN VENV_DIR=/app/.venv ./scripts/setup_python_env.sh --no-dev
 
 COPY app/ app/
 COPY alembic/ alembic/

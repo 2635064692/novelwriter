@@ -109,7 +109,7 @@ def test_dockerfile_allows_frontend_build_mode_overrides():
     assert 'VITE_DEPLOY_MODE="$VITE_DEPLOY_MODE"' in dockerfile
     assert "COPY .uv-version ./" in dockerfile
     assert 'env UV_UNMANAGED_INSTALL="/uv-bin" sh' in dockerfile
-    assert "--mount=type=cache,target=/root/.cache/uv" in dockerfile
+    assert "--mount=type=cache" not in dockerfile
     assert "COPY data/demo/ data/demo/" in dockerfile
     assert "COPY data/worldpacks/ data/worldpacks/" in dockerfile
     assert "python:3.13-slim" in dockerfile
