@@ -6,7 +6,8 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 COPY .uv-version ./
-RUN UV_VERSION="$(tr -d '[:space:]' < .uv-version)" \
+RUN set -o pipefail \
+    && UV_VERSION="$(tr -d '[:space:]' < .uv-version)" \
     && curl -LsSf "https://astral.sh/uv/${UV_VERSION}/install.sh" \
       | env UV_UNMANAGED_INSTALL="/uv-bin" sh
 
