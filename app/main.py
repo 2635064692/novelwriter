@@ -16,6 +16,7 @@ from app.config import get_settings as _get_settings
 from app.database import init_db
 from app.api import auth, novels, lorebook, dashboard, world, copilot
 from app.api import llm as llm_api
+from app.api import prompts as prompts_api
 from app.api import usage as usage_api
 from app.core.rate_limit import limiter
 from app.core.auth import require_admin
@@ -81,6 +82,9 @@ async def lifespan(app: FastAPI):
     )
     _configure_logging(is_production=settings.is_production)
     init_db()
+    # Seed prompt templates into DB and warm in-memory cache
+    from app.core.text.prompt_service import seed_and_warm_cache
+    seed_and_warm_cache()
     logger.info("SCNGS started")
     yield
 
@@ -135,6 +139,7 @@ app.include_router(usage_api.router)
 app.include_router(world.router)
 app.include_router(copilot.router)
 app.include_router(llm_api.router)
+app.include_router(prompts_api.router)
 
 
 def _mount_spa_static_files(app: FastAPI, *, static_dir: _Path) -> None:

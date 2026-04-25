@@ -66,14 +66,22 @@ def get_prompt(
     """Return the template string for *key*.
 
     Lookup order:
-    1. Exact *locale* match.
-    2. DEFAULT_LOCALE fallback.
+    1. DB-backed cache (production path, warmed at startup).
+    2. Legacy in-memory catalog (fallback for tests without a DB).
 
     *provider* is accepted for forward compatibility but does not yet
     influence selection.
 
     Raises ``KeyError`` if no template is found.
     """
+    # Path 1: DB-backed cache
+    try:
+        from app.core.text.prompt_service import get_cached_prompt
+        return get_cached_prompt(key)
+    except (KeyError, ImportError):
+        pass
+
+    # Path 2: Legacy in-memory catalog (tests / no-DB environments)
     for candidate in get_language_fallback_chain(locale, default=DEFAULT_LOCALE):
         catalog = _catalogs.get(candidate)
         if catalog and key in catalog:

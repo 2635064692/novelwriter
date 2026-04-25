@@ -22,6 +22,8 @@ from app.models import (  # noqa: F401 - register models with Base.metadata
     LoreKey,
     Novel,
     Outline,
+    PromptTemplate,
+    PromptVersion,
     TokenUsage,
     User,
     UserEvent,
@@ -88,6 +90,7 @@ _REQUIRED_SCHEMA_COLUMNS: dict[str, set[str]] = {
         "finished_at",
     },
     "user_events": {"user_id", "event", "created_at"},
+    "prompt_templates": {"key", "template", "built_in", "category", "version"},
 }
 _UNVERSIONED_AUTO_UPGRADE_BASELINES: tuple[tuple[str, dict[str, set[str]]], ...] = (
     (
