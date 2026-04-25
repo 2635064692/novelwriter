@@ -60,6 +60,12 @@ export function Navbar({
                                             {t('navbar.library')}
                                         </Link>
                                         <Link
+                                            to="/prompts"
+                                            className="hover:text-foreground transition-colors"
+                                        >
+                                            {t('navbar.prompts')}
+                                        </Link>
+                                        <Link
                                             to="/settings"
                                             className="hover:text-foreground transition-colors"
                                         >
