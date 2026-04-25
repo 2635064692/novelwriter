@@ -6,7 +6,8 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 COPY .uv-version ./
-RUN UV_VERSION="$(tr -d '[:space:]' < .uv-version)" \
+RUN set -o pipefail \
+    && UV_VERSION="$(tr -d '[:space:]' < .uv-version)" \
     && curl -LsSf "https://astral.sh/uv/${UV_VERSION}/install.sh" \
       | env UV_UNMANAGED_INSTALL="/uv-bin" sh
 
@@ -33,8 +34,7 @@ ENV UV_PYTHON_CACHE_DIR=/root/.cache/uv/python
 
 COPY .uv-version pyproject.toml uv.lock .python-version ./
 COPY scripts/setup_python_env.sh ./scripts/
-RUN --mount=type=cache,target=/root/.cache/uv \
-    VENV_DIR=/app/.venv ./scripts/setup_python_env.sh --no-dev
+RUN VENV_DIR=/app/.venv ./scripts/setup_python_env.sh --no-dev
 
 COPY app/ app/
 COPY alembic/ alembic/

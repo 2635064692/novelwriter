@@ -69,7 +69,7 @@ cd /home/haizh/software/novelwriter
 docker compose up -d --build
 ```
 
-默认服务端口：`127.0.0.1:8000`。
+默认服务端口：`0.0.0.0:8000`（宿主机对外监听，按需用防火墙或反向代理收口）。
 
 ### 查看服务状态与日志
 
@@ -83,6 +83,14 @@ docker compose logs --tail=200 scngs
 ```bash
 docker compose down
 ```
+
+### 开发模式与源码挂载
+
+- 默认 `docker compose up -d --build` 使用生产镜像运行：镜像内包含后端 Python 环境与已构建的前端 `/app/static`，运行时只启动 `uvicorn`，由 FastAPI 同进程托管 API 与前端静态资源。
+- 生产镜像可以挂载后端代码到 `/app/app`，但默认命令没有 `--reload`，代码变更后需要重启容器才生效。
+- 生产镜像可以挂载已构建前端产物到 `/app/static`；直接挂载 `web/src` 不会自动构建为浏览器可访问页面。
+- 若需要前后端源码热更新，应使用开发模式：后端在 Docker 环境内以 `uvicorn app.main:app --reload --host 0.0.0.0 --port 8000` 启动，前端在 Node 容器内以 `npm run dev -- --host 0.0.0.0` 启动，并通过 Vite 代理 `/api` 到后端。
+- 开发模式中的依赖安装、测试、构建仍必须发生在远端 Docker 容器内；不得在本机或远端宿主机直接执行 `pip`、`uv`、`npm install` / `npm ci` 等安装操作。
 
 ## 构建与验证（远端 Docker 环境）
 
