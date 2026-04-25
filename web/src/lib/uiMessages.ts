@@ -35,6 +35,7 @@ const settingsZhMessages = {
 const chromeZhMessages = {
   'navbar.features': '功能',
   'navbar.library': '作品库',
+  'navbar.prompts': '提示词',
   'navbar.settings': '设置',
   'navbar.login': '登录',
   'footer.link.terms': '用户规则',
@@ -204,6 +205,7 @@ const enMessages: Partial<Record<UiMessageKey, UiMessageValue>> = {
 
   'navbar.features': 'Features',
   'navbar.library': 'Library',
+  'navbar.prompts': 'Prompts',
   'navbar.settings': 'Settings',
   'navbar.login': 'Log in',
   'footer.link.terms': 'Terms of use',
