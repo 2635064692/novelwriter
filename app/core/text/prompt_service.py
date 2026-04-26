@@ -107,10 +107,7 @@ def seed_defaults(db: Session) -> None:
     from app.core.text.zh import _TEMPLATES
     from app.models import PromptTemplate
 
-    existing = {
-        row.key
-        for row in db.execute(select(PromptTemplate.key)).scalars().all()
-    }
+    existing = set(db.execute(select(PromptTemplate.key)).scalars().all())
 
     new_count = 0
     for pk in PromptKey:
