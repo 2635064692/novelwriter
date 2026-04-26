@@ -526,7 +526,7 @@ class PromptTemplate(Base):
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
-    versions = relationship("PromptVersion", back_populates="template", cascade="all, delete-orphan")
+    versions = relationship("PromptVersion", back_populates="prompt_template", cascade="all, delete-orphan")
 
 
 class PromptVersion(Base):
