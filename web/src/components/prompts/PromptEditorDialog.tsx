@@ -38,7 +38,8 @@ export function PromptEditorDialog({
   }
 
   function handleSave() {
-    onSave({ ...template, content: currentContent })
+    const currentTemplate = template
+    onSave({ ...currentTemplate, content: currentContent })
     setContent('')
     onOpenChange(false)
   }
