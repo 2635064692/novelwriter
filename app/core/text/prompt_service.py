@@ -38,6 +38,29 @@ def _extract_placeholders(template: str) -> set[str]:
     }
 
 
+def _required_placeholders_for(key: str) -> set[str]:
+    """Return the immutable placeholder contract for a PromptKey template."""
+    from app.core.text.zh import _TEMPLATES
+
+    try:
+        prompt_key = PromptKey(key)
+    except ValueError as exc:
+        raise ValueError(f"Prompt template '{key}' not found") from exc
+
+    template = _TEMPLATES.get(prompt_key)
+    if template is None:
+        raise ValueError(f"Prompt template '{key}' not found")
+    return _extract_placeholders(template)
+
+
+def _validate_placeholder_contract(key: str, new_template: str) -> None:
+    required_vars = _required_placeholders_for(key)
+    new_vars = _extract_placeholders(new_template)
+    missing = required_vars - new_vars
+    if missing:
+        raise ValueError(f"Template missing required placeholders: {sorted(missing)}")
+
+
 # ---------------------------------------------------------------------------
 # Cache operations
 # ---------------------------------------------------------------------------
@@ -156,12 +179,7 @@ def update_prompt(
     if row is None:
         raise ValueError(f"Prompt template '{key}' not found")
 
-    # Placeholder validation
-    original_vars = _extract_placeholders(row.template)
-    new_vars = _extract_placeholders(new_template)
-    missing = original_vars - new_vars
-    if missing:
-        raise ValueError(f"Template missing required placeholders: {sorted(missing)}")
+    _validate_placeholder_contract(key, new_template)
 
     # Snapshot current version before overwriting
     db.add(PromptVersion(
