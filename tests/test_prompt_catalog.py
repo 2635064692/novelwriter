@@ -17,6 +17,7 @@ from __future__ import annotations
 import pytest
 
 from app.core.text import DEFAULT_LOCALE, PromptKey, get_prompt, register_templates
+from app.core.text import prompt_service
 from app.core.text.catalog import _catalogs
 
 
@@ -34,6 +35,29 @@ def test_all_keys_resolve(key: PromptKey) -> None:
 # -----------------------------------------------------------------------
 # 2. Backward-compat shim matches catalog
 # -----------------------------------------------------------------------
+
+
+def test_default_lookup_uses_db_cache_before_catalog() -> None:
+    prompt_service._cache[PromptKey.SYSTEM.value] = "db-system"
+    register_templates(DEFAULT_LOCALE, {PromptKey.SYSTEM: "catalog-system"})
+    try:
+        assert get_prompt(PromptKey.SYSTEM) == "db-system"
+    finally:
+        prompt_service._cache.pop(PromptKey.SYSTEM.value, None)
+        import app.core.text.zh as zh
+
+        register_templates(DEFAULT_LOCALE, zh._TEMPLATES)
+
+
+def test_explicit_locale_lookup_prefers_catalog_before_single_language_db() -> None:
+    prompt_service._cache[PromptKey.SYSTEM.value] = "db-system"
+    register_templates("testlang", {PromptKey.SYSTEM: "base-system"})
+    try:
+        assert get_prompt(PromptKey.SYSTEM, locale="testlang-region") == "base-system"
+    finally:
+        prompt_service._cache.pop(PromptKey.SYSTEM.value, None)
+        _catalogs.pop("testlang", None)
+
 
 def test_shim_matches_catalog() -> None:
     from app.utils.prompts import (

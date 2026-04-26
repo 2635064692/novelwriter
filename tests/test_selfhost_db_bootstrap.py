@@ -171,6 +171,18 @@ def test_matches_unversioned_baseline_for_chapter_source_metadata():
             "last_login_at",
         },
         "chapters": {"source_chapter_label", "source_chapter_number"},
+        "prompt_templates": {"key", "template", "built_in", "category", "version"},
+        "prompt_versions": {"prompt_template_id", "template", "version", "operator"},
+    }
+
+    assert _matching_unversioned_upgrade_baseline(missing_columns) == "030"
+
+
+def test_matches_unversioned_baseline_with_missing_prompt_tables():
+    missing_columns = {
+        "chapters": {"source_chapter_label", "source_chapter_number"},
+        "prompt_templates": {"key", "template", "built_in", "category", "version"},
+        "prompt_versions": {"prompt_template_id", "template", "version", "operator"},
     }
 
     assert _matching_unversioned_upgrade_baseline(missing_columns) == "030"

@@ -74,15 +74,29 @@ def get_prompt(
 
     Raises ``KeyError`` if no template is found.
     """
-    # Path 1: DB-backed cache
+    candidates = get_language_fallback_chain(locale, default=DEFAULT_LOCALE)
+
+    # Path 1: Preserve explicit non-default locale catalogs until prompt storage
+    # grows a locale column. Default-language lookups still use DB first so
+    # runtime edits are visible to existing consumers that pass locale="zh".
+    if locale is not None:
+        for candidate in candidates:
+            if candidate == DEFAULT_LOCALE:
+                continue
+            catalog = _catalogs.get(candidate)
+            if catalog and key in catalog:
+                return catalog[key]
+
+    # Path 2: DB-backed cache for the default single-language runtime path.
     try:
         from app.core.text.prompt_service import get_cached_prompt
+
         return get_cached_prompt(key)
     except (KeyError, ImportError):
         pass
 
-    # Path 2: Legacy in-memory catalog (tests / no-DB environments)
-    for candidate in get_language_fallback_chain(locale, default=DEFAULT_LOCALE):
+    # Path 3: Legacy in-memory catalog (tests / no-DB environments).
+    for candidate in candidates:
         catalog = _catalogs.get(candidate)
         if catalog and key in catalog:
             return catalog[key]

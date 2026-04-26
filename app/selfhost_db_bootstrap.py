@@ -91,6 +91,7 @@ _REQUIRED_SCHEMA_COLUMNS: dict[str, set[str]] = {
     },
     "user_events": {"user_id", "event", "created_at"},
     "prompt_templates": {"key", "template", "built_in", "category", "version"},
+    "prompt_versions": {"prompt_template_id", "template", "version", "operator"},
 }
 _UNVERSIONED_AUTO_UPGRADE_BASELINES: tuple[tuple[str, dict[str, set[str]]], ...] = (
     (
@@ -98,6 +99,8 @@ _UNVERSIONED_AUTO_UPGRADE_BASELINES: tuple[tuple[str, dict[str, set[str]]], ...]
         {
             "auth_identities": _REQUIRED_SCHEMA_COLUMNS["auth_identities"],
             "chapters": _REQUIRED_SCHEMA_COLUMNS["chapters"],
+            "prompt_templates": _REQUIRED_SCHEMA_COLUMNS["prompt_templates"],
+            "prompt_versions": _REQUIRED_SCHEMA_COLUMNS["prompt_versions"],
         },
     ),
     (
@@ -106,6 +109,8 @@ _UNVERSIONED_AUTO_UPGRADE_BASELINES: tuple[tuple[str, dict[str, set[str]]], ...]
             "auth_identities": _REQUIRED_SCHEMA_COLUMNS["auth_identities"],
             "chapters": _REQUIRED_SCHEMA_COLUMNS["chapters"],
             "derived_asset_jobs": _REQUIRED_SCHEMA_COLUMNS["derived_asset_jobs"],
+            "prompt_templates": _REQUIRED_SCHEMA_COLUMNS["prompt_templates"],
+            "prompt_versions": _REQUIRED_SCHEMA_COLUMNS["prompt_versions"],
         },
     ),
     (
@@ -121,6 +126,8 @@ _UNVERSIONED_AUTO_UPGRADE_BASELINES: tuple[tuple[str, dict[str, set[str]]], ...]
             },
             "chapters": _REQUIRED_SCHEMA_COLUMNS["chapters"],
             "derived_asset_jobs": _REQUIRED_SCHEMA_COLUMNS["derived_asset_jobs"],
+            "prompt_templates": _REQUIRED_SCHEMA_COLUMNS["prompt_templates"],
+            "prompt_versions": _REQUIRED_SCHEMA_COLUMNS["prompt_versions"],
         },
     ),
 )
