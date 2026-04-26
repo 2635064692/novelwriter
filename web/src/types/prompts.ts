@@ -25,7 +25,9 @@ export interface PromptVersion {
   version: number
   createdAt: string
   summary: string
+  content: string
   contentPreview: string
+  current?: boolean
 }
 
 export interface PromptTemplate {
@@ -67,3 +69,36 @@ export const PROMPT_CATEGORY_OPTIONS: PromptCategoryOption[] = [
   { value: 'world', label: '世界观', keys: ['world_gen_system', 'world_gen'] },
   { value: 'bootstrap', label: '引导', keys: ['bootstrap_refinement'] },
 ]
+
+
+export interface PromptTemplateDto {
+  id: number
+  key: PromptKey
+  template: string
+  description: string | null
+  built_in: boolean
+  category: string
+  version: number
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface PromptTemplateUpdateDto {
+  template: string
+  reason?: string | null
+}
+
+export interface PromptVersionDto {
+  id: number
+  prompt_template_id: number
+  template: string
+  version: number
+  operator: string
+  reason: string | null
+  created_at: string | null
+}
+
+export interface PromptRollbackDto {
+  version: number
+  reason?: string | null
+}

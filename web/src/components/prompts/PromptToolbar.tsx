@@ -1,18 +1,15 @@
 // SPDX-FileCopyrightText: 2026 Isaac.X.Ω.Yuan
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import { Search, Plus } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import { NwButton } from '@/components/ui/nw-button'
 
 export function PromptToolbar({
   searchQuery,
   onSearchQueryChange,
-  onCreateClick,
 }: {
   searchQuery: string
   onSearchQueryChange: (value: string) => void
-  onCreateClick: () => void
 }) {
   return (
     <div className="flex items-center justify-between gap-4">
@@ -25,14 +22,9 @@ export function PromptToolbar({
           className="w-72 pl-9 bg-transparent border-[var(--nw-glass-border)] text-sm"
         />
       </div>
-      <NwButton
-        variant="accent"
-        onClick={onCreateClick}
-        className="rounded-full px-5 py-2 text-sm font-medium"
-      >
-        <Plus size={16} />
-        新建提示词
-      </NwButton>
+      <p className="text-xs text-muted-foreground">
+        当前对接后端 6 个系统提示词；自定义模板创建待后端 API 支持。
+      </p>
     </div>
   )
 }

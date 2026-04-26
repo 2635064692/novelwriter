@@ -42,7 +42,7 @@ export function PromptVersionHistoryTab({
             <p className="text-sm text-foreground">{v.summary}</p>
             <p className="text-xs text-muted-foreground line-clamp-2">{v.contentPreview}</p>
           </div>
-          {idx > 0 && (
+          {!v.current && (
             <button
               onClick={() => onRestore(v)}
               className="shrink-0 text-[11px] text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded hover:bg-[var(--nw-glass-bg-hover)]"

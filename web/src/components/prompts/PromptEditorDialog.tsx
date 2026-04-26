@@ -16,11 +16,13 @@ export function PromptEditorDialog({
   open,
   onOpenChange,
   onSave,
+  onRestore,
 }: {
   template: PromptTemplate | null
   open: boolean
   onOpenChange: (open: boolean) => void
   onSave: (template: PromptTemplate) => void
+  onRestore: (template: PromptTemplate, version: number) => void
 }) {
   const [content, setContent] = useState('')
   const [activeTab, setActiveTab] = useState('content')
@@ -29,6 +31,7 @@ export function PromptEditorDialog({
 
   const activeTemplate = template
   const isBuiltIn = activeTemplate.origin === 'built_in'
+  const readOnly = false
   const currentContent = content || activeTemplate.content
   const isDirty = content !== '' && content !== activeTemplate.content
 
@@ -45,7 +48,8 @@ export function PromptEditorDialog({
   }
 
   function handleRestore(version: PromptVersion) {
-    setContent(version.contentPreview)
+    onRestore(activeTemplate, version.version)
+    setContent('')
     setActiveTab('content')
   }
 
@@ -101,7 +105,7 @@ export function PromptEditorDialog({
             <PromptContentEditorTab
               content={currentContent}
               onChange={setContent}
-              readOnly={isBuiltIn}
+              readOnly={readOnly}
             />
           </TabsContent>
 
@@ -121,11 +125,9 @@ export function PromptEditorDialog({
           </p>
           <div className="flex items-center gap-3">
             <NwButton variant="ghost" onClick={handleClose}>取消</NwButton>
-            {!isBuiltIn && (
-              <NwButton variant="accent" onClick={handleSave} disabled={!isDirty}>
-                保存为新版本
-              </NwButton>
-            )}
+            <NwButton variant="accent" onClick={handleSave} disabled={!isDirty}>
+              保存为新版本
+            </NwButton>
           </div>
         </div>
       </div>

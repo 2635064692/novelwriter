@@ -4,7 +4,7 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { PageShell } from '@/components/layout/PageShell'
-import { usePromptTemplates, useUpdatePromptTemplate } from '@/hooks/prompts/usePromptTemplates'
+import { usePromptTemplates, useRollbackPromptTemplate, useUpdatePromptTemplate } from '@/hooks/prompts/usePromptTemplates'
 import { PromptToolbar } from '@/components/prompts/PromptToolbar'
 import { PromptCategoryTabs } from '@/components/prompts/PromptCategoryTabs'
 import { PromptCardGrid } from '@/components/prompts/PromptCardGrid'
@@ -15,6 +15,7 @@ export function PromptManagementPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { data: templates = [], isLoading } = usePromptTemplates()
   const updateTemplate = useUpdatePromptTemplate()
+  const rollbackTemplate = useRollbackPromptTemplate()
 
   const activeCategory = parseCategory(searchParams.get('category')) ?? 'all'
   const searchQuery = searchParams.get('q') ?? ''
@@ -70,6 +71,10 @@ export function PromptManagementPage() {
     updateTemplate.mutate({ id: template.id, data: { content: template.content } })
   }, [updateTemplate])
 
+  const handleRestore = useCallback((template: PromptTemplate, version: number) => {
+    rollbackTemplate.mutate({ id: template.id, version })
+  }, [rollbackTemplate])
+
   return (
     <PageShell className="h-screen" navbarProps={{ position: 'static' }} mainClassName="overflow-hidden">
       <div className="flex flex-col flex-1 px-12 py-10 gap-6 overflow-auto">
@@ -85,7 +90,6 @@ export function PromptManagementPage() {
         <PromptToolbar
           searchQuery={searchQuery}
           onSearchQueryChange={handleSearchQueryChange}
-          onCreateClick={() => {}}
         />
 
         {/* Category Tabs */}
@@ -109,6 +113,7 @@ export function PromptManagementPage() {
         open={editorOpen}
         onOpenChange={setEditorOpen}
         onSave={handleSave}
+        onRestore={handleRestore}
       />
     </PageShell>
   )

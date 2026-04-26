@@ -2,90 +2,216 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { request } from '@/services/apiClient'
 import { promptKeys } from './keys'
-import { mockPromptTemplates } from '@/mocks/prompts'
-import type { CreatePromptInput, PromptTemplate } from '@/types/prompts'
+import type {
+  CreatePromptInput,
+  PromptKey,
+  PromptRollbackDto,
+  PromptTemplate,
+  PromptTemplateCategory,
+  PromptTemplateDto,
+  PromptTemplateUpdateDto,
+  PromptVariable,
+  PromptVersion,
+  PromptVersionDto,
+} from '@/types/prompts'
 
 export interface UpdatePromptTemplateInput {
   id: string
-  data: Partial<CreatePromptInput>
+  data: Partial<CreatePromptInput> & { reason?: string }
+}
+
+export interface RollbackPromptTemplateInput {
+  id: string
+  version: number
+  reason?: string
+}
+
+const PROMPT_META: Record<PromptKey, { title: string; category: PromptTemplateCategory; tags: string[]; description: string }> = {
+  system: {
+    title: '续写系统提示词',
+    category: 'continuation',
+    tags: ['核心', '续写'],
+    description: '约束续写任务的角色一致性、视角纪律、反幻觉规则和输出格式。',
+  },
+  continuation: {
+    title: '续写用户消息模板',
+    category: 'continuation',
+    tags: ['续写', '用户模板'],
+    description: '组合书名、待续章节、大纲、世界观与叙事约束，生成续写请求。',
+  },
+  outline: {
+    title: '大纲提炼提示词',
+    category: 'outline',
+    tags: ['大纲', '章节摘要'],
+    description: '从章节正文中提炼指定范围的大纲与关键情节。',
+  },
+  world_gen_system: {
+    title: '世界观生成系统提示词',
+    category: 'world',
+    tags: ['世界观', '系统'],
+    description: '定义世界观抽取任务的结构化输出规则与边界。',
+  },
+  world_gen: {
+    title: '世界观生成用户消息模板',
+    category: 'world',
+    tags: ['世界观', '抽取'],
+    description: '从文本片段中抽取人物、地点、组织、设定与关系。',
+  },
+  bootstrap_refinement: {
+    title: '世界观引导优化提示词',
+    category: 'bootstrap',
+    tags: ['引导', '候选词'],
+    description: '根据候选词与共现关系优化世界观引导建议。',
+  },
+}
+
+const VARIABLE_DESCRIPTIONS: Record<string, string> = {
+  title: '小说标题',
+  next_chapter_reference: '待续章节引用',
+  outline: '当前续写目标对应的大纲内容',
+  world_context: '注入的世界观知识与人物关系',
+  narrative_constraints: '本次续写必须遵守的叙事约束',
+  start: '起始章节编号',
+  end: '结束章节编号',
+  content: '用于提炼大纲的章节正文',
+  chunk_directive: '分块处理时的覆盖率或范围指令',
+  text: '待抽取的世界观设定文本',
+  candidate_lines: '候选词列表（名称: 出现窗口数）',
+  pair_lines: '候选词共现对列表',
 }
 
 function createContentPreview(content: string): string {
   return content.trim().replace(/\s+/g, ' ').slice(0, 120)
 }
 
-function buildPromptTemplate(input: CreatePromptInput): PromptTemplate {
-  const now = new Date().toISOString()
-  const id = `prompt-custom-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+function extractVariables(content: string): PromptVariable[] {
+  const names = Array.from(content.matchAll(/\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g), (match) => match[1])
+  return [...new Set(names)].sort().map((name) => ({
+    name,
+    description: VARIABLE_DESCRIPTIONS[name] ?? '后端模板占位符，保存时必须保持完整。',
+    requirement: 'required',
+  }))
+}
+
+function toPromptVersion(dto: PromptVersionDto): PromptVersion {
+  const createdAt = dto.created_at ?? new Date(0).toISOString()
   return {
-    id,
-    key: input.key,
-    title: input.title,
-    description: input.description,
-    category: input.category,
-    origin: 'custom',
-    content: input.content,
-    variables: input.variables ?? [],
-    versions: [
-      { id: `${id}-v1`, version: 1, createdAt: now, summary: '创建自定义提示词', contentPreview: createContentPreview(input.content) },
-    ],
-    tags: input.tags ?? [],
-    updatedAt: now,
-    enabled: input.enabled ?? true,
+    id: String(dto.id),
+    version: dto.version,
+    createdAt,
+    summary: dto.reason || `由 ${dto.operator} 保存的历史快照`,
+    content: dto.template,
+    contentPreview: createContentPreview(dto.template),
   }
+}
+
+function toPromptTemplate(dto: PromptTemplateDto, versions: PromptVersionDto[] = []): PromptTemplate {
+  const meta = PROMPT_META[dto.key]
+  const updatedAt = dto.updated_at ?? dto.created_at ?? new Date(0).toISOString()
+  const currentVersion: PromptVersion = {
+    id: `${dto.id}-current`,
+    version: dto.version,
+    createdAt: updatedAt,
+    summary: '当前数据库版本',
+    content: dto.template,
+    contentPreview: createContentPreview(dto.template),
+    current: true,
+  }
+
+  return {
+    id: dto.key,
+    key: dto.key,
+    title: meta.title,
+    description: dto.description || meta.description,
+    category: meta.category,
+    origin: dto.built_in ? 'built_in' : 'custom',
+    content: dto.template,
+    variables: extractVariables(dto.template),
+    versions: [currentVersion, ...versions.map(toPromptVersion)],
+    tags: meta.tags,
+    updatedAt,
+    enabled: true,
+  }
+}
+
+async function listPromptTemplates(): Promise<PromptTemplate[]> {
+  const templates = await request<PromptTemplateDto[]>('/api/prompts/')
+  const withVersions = await Promise.all(templates.map(async (template) => {
+    const versions = await request<PromptVersionDto[]>(`/api/prompts/${encodeURIComponent(template.key)}/versions`)
+    return toPromptTemplate(template, versions)
+  }))
+  return withVersions.sort((a, b) => a.title.localeCompare(b.title, 'zh-CN'))
+}
+
+async function updatePromptTemplate({ id, data }: UpdatePromptTemplateInput): Promise<PromptTemplate> {
+  if (data.content == null) throw new Error('Prompt template content is required')
+  const payload: PromptTemplateUpdateDto = {
+    template: data.content,
+    reason: data.reason ?? '前端提示词管理保存',
+  }
+  const updated = await request<PromptTemplateDto>(`/api/prompts/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+  const versions = await request<PromptVersionDto[]>(`/api/prompts/${encodeURIComponent(updated.key)}/versions`)
+  return toPromptTemplate(updated, versions)
+}
+
+async function rollbackPromptTemplate({ id, version, reason }: RollbackPromptTemplateInput): Promise<PromptTemplate> {
+  const payload: PromptRollbackDto = {
+    version,
+    reason: reason ?? `前端回滚到 v${version}`,
+  }
+  const updated = await request<PromptTemplateDto>(`/api/prompts/${encodeURIComponent(id)}/rollback`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  const versions = await request<PromptVersionDto[]>(`/api/prompts/${encodeURIComponent(updated.key)}/versions`)
+  return toPromptTemplate(updated, versions)
 }
 
 export function usePromptTemplates() {
   return useQuery<PromptTemplate[]>({
     queryKey: promptKeys.templates(),
-    queryFn: () => Promise.resolve(mockPromptTemplates),
-    staleTime: Infinity,
+    queryFn: listPromptTemplates,
+    staleTime: 30_000,
   })
 }
 
 export function useCreatePromptTemplate() {
-  const queryClient = useQueryClient()
   return useMutation<PromptTemplate, Error, CreatePromptInput>({
-    mutationFn: (input) => Promise.resolve(buildPromptTemplate(input)),
-    onSuccess: (created) => {
-      queryClient.setQueryData<PromptTemplate[]>(
-        promptKeys.templates(),
-        (current = []) => [created, ...current],
-      )
-    },
+    mutationFn: () => Promise.reject(new Error('Custom prompt creation is not supported by the backend API yet')),
   })
 }
 
 export function useUpdatePromptTemplate() {
   const queryClient = useQueryClient()
   return useMutation<PromptTemplate, Error, UpdatePromptTemplateInput>({
-    mutationFn: ({ id, data }) => {
-      const templates = queryClient.getQueryData<PromptTemplate[]>(promptKeys.templates())
-      const current = templates?.find((t) => t.id === id)
-      if (!current) return Promise.reject(new Error(`Template not found: ${id}`))
-      const now = new Date().toISOString()
-      const contentChanged = data.content !== undefined && data.content !== current.content
-      const nextVersion = contentChanged
-        ? Math.max(...current.versions.map((v) => v.version)) + 1
-        : null
-      const updated: PromptTemplate = {
-        ...current,
-        ...data,
-        variables: data.variables ?? current.variables,
-        versions: nextVersion != null && data.content !== undefined
-          ? [...current.versions, { id: `${id}-v${nextVersion}`, version: nextVersion, createdAt: now, summary: '更新提示词内容', contentPreview: createContentPreview(data.content) }]
-          : current.versions,
-        tags: data.tags ?? current.tags,
-        updatedAt: now,
-      }
-      return Promise.resolve(updated)
-    },
+    mutationFn: updatePromptTemplate,
     onSuccess: (updated) => {
       queryClient.setQueryData<PromptTemplate[]>(
         promptKeys.templates(),
         (current = []) => current.map((t) => (t.id === updated.id ? updated : t)),
       )
+      void queryClient.invalidateQueries({ queryKey: promptKeys.templates() })
+      void queryClient.invalidateQueries({ queryKey: promptKeys.versions(updated.id) })
+    },
+  })
+}
+
+export function useRollbackPromptTemplate() {
+  const queryClient = useQueryClient()
+  return useMutation<PromptTemplate, Error, RollbackPromptTemplateInput>({
+    mutationFn: rollbackPromptTemplate,
+    onSuccess: (updated) => {
+      queryClient.setQueryData<PromptTemplate[]>(
+        promptKeys.templates(),
+        (current = []) => current.map((t) => (t.id === updated.id ? updated : t)),
+      )
+      void queryClient.invalidateQueries({ queryKey: promptKeys.templates() })
+      void queryClient.invalidateQueries({ queryKey: promptKeys.versions(updated.id) })
     },
   })
 }

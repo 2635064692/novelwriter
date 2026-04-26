@@ -24,7 +24,7 @@ export function PromptContentEditorTab({
       />
       {readOnly && (
         <p className="text-[11px] text-muted-foreground">
-          内置模板不可直接修改。可复制为自定义模板后编辑。
+          当前模板不可编辑。
         </p>
       )}
     </div>

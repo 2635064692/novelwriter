@@ -53,7 +53,7 @@ export function PromptCard({
       )}
 
       <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-        <span>v{template.versions.length}</span>
+        <span>v{template.versions[0]?.version ?? 1}</span>
         <span>·</span>
         <span>{template.tags.slice(0, 2).join(', ')}</span>
       </div>
