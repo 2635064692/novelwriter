@@ -27,9 +27,10 @@ export function PromptEditorDialog({
 
   if (!open || !template) return null
 
-  const isBuiltIn = template.origin === 'built_in'
-  const currentContent = content || template.content
-  const isDirty = content !== '' && content !== template.content
+  const activeTemplate = template
+  const isBuiltIn = activeTemplate.origin === 'built_in'
+  const currentContent = content || activeTemplate.content
+  const isDirty = content !== '' && content !== activeTemplate.content
 
   function handleClose() {
     setContent('')
@@ -38,8 +39,7 @@ export function PromptEditorDialog({
   }
 
   function handleSave() {
-    const currentTemplate = template
-    onSave({ ...currentTemplate, content: currentContent })
+    onSave({ ...activeTemplate, content: currentContent })
     setContent('')
     onOpenChange(false)
   }
@@ -58,7 +58,7 @@ export function PromptEditorDialog({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--nw-glass-border)]">
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-semibold text-foreground">{template.title}</h2>
+            <h2 className="text-lg font-semibold text-foreground">{activeTemplate.title}</h2>
             <span
               className={cn(
                 'text-[10px] px-2 py-0.5 rounded-full border font-medium',
@@ -77,8 +77,8 @@ export function PromptEditorDialog({
 
         {/* Info bar */}
         <div className="px-6 py-2.5 text-[11px] text-muted-foreground border-b border-[var(--nw-glass-border)] bg-[var(--nw-glass-bg)]">
-          <code className="font-mono mr-3">{template.key}</code>
-          <span>共 {template.versions.length} 个版本</span>
+          <code className="font-mono mr-3">{activeTemplate.key}</code>
+          <span>共 {activeTemplate.versions.length} 个版本</span>
         </div>
 
         {/* Tabs */}
@@ -92,7 +92,7 @@ export function PromptEditorDialog({
                 变量配置
               </TabsTrigger>
               <TabsTrigger value="versions" className="text-sm px-0 py-2 border-b-2 border-transparent data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none rounded-none">
-                版本历史 ({template.versions.length})
+                版本历史 ({activeTemplate.versions.length})
               </TabsTrigger>
             </TabsList>
           </div>
@@ -106,11 +106,11 @@ export function PromptEditorDialog({
           </TabsContent>
 
           <TabsContent value="variables" className="flex-1 overflow-y-auto p-6">
-            <PromptVariablesTableTab variables={template.variables} />
+            <PromptVariablesTableTab variables={activeTemplate.variables} />
           </TabsContent>
 
           <TabsContent value="versions" className="flex-1 overflow-y-auto p-6">
-            <PromptVersionHistoryTab versions={template.versions} onRestore={handleRestore} />
+            <PromptVersionHistoryTab versions={activeTemplate.versions} onRestore={handleRestore} />
           </TabsContent>
         </Tabs>
 
