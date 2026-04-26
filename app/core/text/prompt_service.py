@@ -8,12 +8,15 @@ from __future__ import annotations
 
 import logging
 import string
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.text.catalog import PromptKey
+
+if TYPE_CHECKING:
+    from app.models import PromptTemplate
 
 logger = logging.getLogger(__name__)
 
