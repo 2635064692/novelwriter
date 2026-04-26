@@ -116,7 +116,7 @@ export interface ContinueResponse {
 // World Model Types
 export type Visibility = 'active' | 'reference' | 'hidden'
 export type EntityStatus = 'draft' | 'confirmed'
-export type SystemDisplayType = 'hierarchy' | 'timeline' | 'list'
+export type SystemDisplayType = 'hierarchy' | 'timeline' | 'list' | 'outline'
 export type LegacySystemDisplayType = SystemDisplayType | 'graph'
 export type WorldOrigin = 'manual' | 'bootstrap' | 'worldpack' | 'worldgen'
 

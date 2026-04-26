@@ -170,6 +170,34 @@ def test_world_gen_template_has_expected_placeholders() -> None:
     assert "directive" in formatted
 
 
+def test_outline_generation_templates_have_expected_placeholders() -> None:
+    volume_tpl = get_prompt(PromptKey.VOLUME_OUTLINE_GEN)
+    volume_prompt = volume_tpl.format(
+        world_context="world",
+        chapter_list="chapters",
+        total_chapters=100,
+        total_volumes_hint="5",
+        user_guidance="guidance",
+    )
+    assert "world" in volume_prompt
+    assert "chapters" in volume_prompt
+
+    chapter_tpl = get_prompt(PromptKey.CHAPTER_BRIEF_GEN)
+    chapter_prompt = chapter_tpl.format(
+        world_context="world",
+        volume_number=1,
+        volume_title="title",
+        volume_outline="outline",
+        chapter_start=1,
+        chapter_end=2,
+        chapter_contents="contents",
+        carry="carry",
+        user_guidance="guidance",
+    )
+    assert "outline" in chapter_prompt
+    assert "contents" in chapter_prompt
+
+
 def test_world_gen_prompts_describe_supported_system_shapes() -> None:
     system_tpl = get_prompt(PromptKey.WORLD_GEN_SYSTEM)
     user_tpl = get_prompt(PromptKey.WORLD_GEN)
@@ -177,10 +205,12 @@ def test_world_gen_prompts_describe_supported_system_shapes() -> None:
     assert "display_type" in system_tpl
     assert "hierarchy" in system_tpl
     assert "timeline" in system_tpl
+    assert "outline" in system_tpl
     assert "不要输出 graph" in system_tpl
     assert "display_type" in user_tpl
     assert "children" in user_tpl
     assert "time" in user_tpl
+    assert "outline" in user_tpl
 
 
 # -----------------------------------------------------------------------

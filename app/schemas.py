@@ -9,8 +9,8 @@ from app.language import DEFAULT_LANGUAGE, normalize_copilot_interaction_locale,
 from app.world_visibility import WorldVisibility, normalize_visibility
 
 WorldOrigin = Literal["manual", "bootstrap", "worldpack", "worldgen"]
-SystemDisplayType = Literal["hierarchy", "timeline", "list"]
-LegacySystemDisplayType = Literal["hierarchy", "timeline", "list", "graph"]
+SystemDisplayType = Literal["hierarchy", "timeline", "list", "outline"]
+LegacySystemDisplayType = Literal["hierarchy", "timeline", "list", "outline", "graph"]
 WarningMessageParam = str | int | float | bool | None
 
 
@@ -567,10 +567,61 @@ class _ListData(BaseModel):
     items: List[_ListItem] = Field(default_factory=list)
 
 
+class _OutlineChapter(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    chapter_number: int = Field(ge=1)
+    chapter_title: str = ""
+    brief_text: str = ""
+    suspense_density: str | None = None
+    cognitive_twist: int | None = Field(default=None, ge=1, le=5)
+    status: str = "draft"
+
+    @field_validator("status")
+    @classmethod
+    def _validate_status(cls, v: str) -> str:
+        if v not in {"draft", "approved"}:
+            raise ValueError("status must be draft or approved")
+        return v
+
+
+class _OutlineVolume(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    volume_number: int = Field(ge=1)
+    volume_title: str = ""
+    chapter_start: int = Field(ge=1)
+    chapter_end: int = Field(ge=1)
+    outline_text: str = ""
+    status: str = "draft"
+    chapters: list[_OutlineChapter] = Field(default_factory=list)
+
+    @field_validator("status")
+    @classmethod
+    def _validate_status(cls, v: str) -> str:
+        if v not in {"draft", "approved"}:
+            raise ValueError("status must be draft or approved")
+        return v
+
+    @model_validator(mode="after")
+    def _validate_range(self) -> "_OutlineVolume":
+        if self.chapter_end < self.chapter_start:
+            raise ValueError("chapter_end must be greater than or equal to chapter_start")
+        return self
+
+
+class _OutlineData(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    total_volumes: int | None = Field(default=None, ge=0)
+    volumes: list[_OutlineVolume] = Field(default_factory=list)
+
+
 _SYSTEM_DATA_ADAPTERS: dict[SystemDisplayType, TypeAdapter] = {
     "hierarchy": TypeAdapter(_HierarchyData),
     "timeline": TypeAdapter(_TimelineData),
     "list": TypeAdapter(_ListData),
+    "outline": TypeAdapter(_OutlineData),
 }
 
 
@@ -637,6 +688,33 @@ class WorldSystemResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)
+
+
+class OutlineGenerateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    step: Literal["volume", "chapter"]
+    volume_number: int | None = Field(default=None, ge=1)
+    total_volumes_hint: int | None = Field(default=None, ge=1, le=100)
+    user_guidance: str | None = Field(default=None, max_length=2000)
+    batch_size: int = Field(default=25, ge=1, le=50)
+
+    @model_validator(mode="after")
+    def _validate_step_fields(self) -> "OutlineGenerateRequest":
+        if self.step == "volume" and self.volume_number is not None:
+            raise ValueError("volume_number is only valid when step is chapter")
+        return self
+
+
+class OutlineSystemStateResponse(BaseModel):
+    exists: bool
+    system: WorldSystemResponse | None = None
+
+
+class OutlineApproveRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    volume_number: int | None = Field(default=None, ge=1)
 
 
 class BootstrapStatus(str, Enum):

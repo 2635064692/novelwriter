@@ -8,6 +8,8 @@ export type PromptKey =
   | 'world_gen_system'
   | 'world_gen'
   | 'bootstrap_refinement'
+  | 'volume_outline_gen'
+  | 'chapter_brief_gen'
 
 export type PromptCategory = 'all' | 'continuation' | 'outline' | 'world' | 'bootstrap'
 export type PromptTemplateCategory = Exclude<PromptCategory, 'all'>
@@ -63,9 +65,9 @@ export interface CreatePromptInput {
 }
 
 export const PROMPT_CATEGORY_OPTIONS: PromptCategoryOption[] = [
-  { value: 'all', label: '全部', keys: ['system', 'continuation', 'outline', 'world_gen_system', 'world_gen', 'bootstrap_refinement'] },
+  { value: 'all', label: '全部', keys: ['system', 'continuation', 'outline', 'world_gen_system', 'world_gen', 'bootstrap_refinement', 'volume_outline_gen', 'chapter_brief_gen'] },
   { value: 'continuation', label: '续写', keys: ['system', 'continuation'] },
-  { value: 'outline', label: '大纲', keys: ['outline'] },
+  { value: 'outline', label: '大纲', keys: ['outline', 'volume_outline_gen', 'chapter_brief_gen'] },
   { value: 'world', label: '世界观', keys: ['world_gen_system', 'world_gen'] },
   { value: 'bootstrap', label: '引导', keys: ['bootstrap_refinement'] },
 ]

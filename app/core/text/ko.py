@@ -83,6 +83,77 @@ PromptKey.CONTINUATION: """<novel_info>
 
 간결하게 정리하여 총 300-500자로 작성해 주세요.""",
 
+    PromptKey.VOLUME_OUTLINE_GEN: """You are a three-act plot architect. Plan volume divisions and write volume outlines from confirmed world context, chapter list, and optional user guidance.
+
+【Confirmed World Context】
+{world_context}
+
+【Existing Chapter List】
+{chapter_list}
+
+【Expected Total Chapters】
+{total_chapters}
+
+【Suggested Volume Count】
+{total_volumes_hint}
+
+【User Guidance】
+{user_guidance}
+
+【Output Requirements】
+Return only a JSON object, with no Markdown and no explanation:
+{{
+  "total_volumes": 3,
+  "volumes": [
+    {{
+      "volume_number": 1,
+      "volume_title": "Volume One · Example",
+      "chapter_start": 1,
+      "chapter_end": 20,
+      "outline_text": "A usable volume outline covering plot movement, character change, escalation, and ending hook.",
+      "chapters": []
+    }}
+  ]
+}}
+Volume numbers must start at 1 and increase; chapter ranges must be continuous and non-overlapping; outline_text must be directly usable as writing constraints.""",
+
+    PromptKey.CHAPTER_BRIEF_GEN: """You are a chapter suspense and pacing designer. Generate chapter briefs for the requested range from the current volume outline and chapter materials.
+
+【Confirmed World Context】
+{world_context}
+
+【Current Volume】
+Volume number: {volume_number}
+Volume title: {volume_title}
+Volume outline: {volume_outline}
+
+【Batch Chapter Range】
+Chapter {chapter_start} to Chapter {chapter_end}
+
+【Chapter Material Summaries】
+{chapter_contents}
+
+【Carry-Over】
+{carry}
+
+【User Guidance】
+{user_guidance}
+
+【Output Requirements】
+Return only a JSON object, with no Markdown and no explanation:
+{{
+  "chapters": [
+    {{
+      "chapter_number": 1,
+      "chapter_title": "Chapter title",
+      "brief_text": "This chapter's role, core function, conflict movement, foreshadowing operation, and ending hook.",
+      "suspense_density": "tight",
+      "cognitive_twist": 3
+    }}
+  ]
+}}
+chapter_number must cover every chapter in this batch; cognitive_twist is an integer from 1 to 5; brief_text must directly guide prose continuation.""",
+
     # ------------------------------------------------------------------
     # World generation: system prompt
     # ------------------------------------------------------------------
@@ -96,10 +167,11 @@ PromptKey.CONTINUATION: """<novel_info>
 3) 관계에는 방향이 있음: source = 능동 측/상위/소유자/행위 발기자, target = 수동 측/하위/피소유자/행위 수용자.
 4) 스키마가 허용하는 필드만 출력할 것 — 메타데이터(id, origin, status, visibility 등) 출력 금지.
 5) systems는 세계 규칙, 조직 제도, 수련 체계, 역사적 시기, 지리 구조, 세력 원칙, 금기 등을 주로 다룸. 텍스트에 충분한 정보가 있으면 여러 items로 분할할 것.
-6) systems.display_type은 3종류만 사용 가능:
+6) systems.display_type은 다음 값만 사용 가능:
    - list: 기본값. 요점 나열에 적합. items는 label/description만.
    - hierarchy: 상하 관계, 계층, 트리 구조가 있을 때 사용. items는 children으로 중첩.
    - timeline: 명확한 시간순, 역사적 단계, 연대표가 있을 때 사용. items에 time 필수.
+   - outline: 소설의 권 구성, 권별 개요, 장별 개요 구조가 명시된 경우에만 사용.
 7) graph 데이터 출력 금지. 좌표, 변, 레이아웃 정보 생성 시도 금지.""",
 
     # ------------------------------------------------------------------
@@ -119,6 +191,7 @@ PromptKey.CONTINUATION: """<novel_info>
    - list: 기본값. 자원 종류, 세력 원칙, 금기, 제도 요점 등.
    - hierarchy: 수련 등급 체계, 조직도, 권력 피라미드, 지역 계층 등. items에 children 필수.
    - timeline: 역사적 시기, 대사건 연대표, 왕조 교체, 재앙 순서 등. items에 time 필수.
+   - outline: 명시적인 권/장 개요 구조에만 사용하고 일반 세계관 메모에는 사용하지 말 것.
 6) systems는 가능한 상세하게 작성할 것.
 7) 텍스트의 정보량이 많으면 포괄성을 우선할 것.
 

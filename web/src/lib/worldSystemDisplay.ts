@@ -15,6 +15,8 @@ export function getSystemDisplayTypeLabel(displayType: string, locale?: UiLocale
       return translateUiMessage(effectiveLocale, 'worldModel.system.display.timeline')
     case 'list':
       return translateUiMessage(effectiveLocale, 'worldModel.system.display.list')
+    case 'outline':
+      return translateUiMessage(effectiveLocale, 'worldModel.system.display.outline')
     case 'graph':
       return translateUiMessage(effectiveLocale, 'worldModel.system.display.graph')
     default:

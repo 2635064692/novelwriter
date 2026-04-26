@@ -94,6 +94,7 @@ export const worldModelZhMessages = {
   'worldModel.system.display.hierarchy': '层级结构',
   'worldModel.system.display.timeline': '时间线',
   'worldModel.system.display.list': '列表',
+  'worldModel.system.display.outline': '大纲体系',
   'worldModel.system.display.graph': '关系图（只读）',
 
   'worldModel.legacyGraph.notice': '这是旧版关系图体系。当前版本仅保留读取兼容，不再支持新建或编辑图结构；如需继续维护，请迁移到关系或列表/层级体系。',
@@ -496,6 +497,7 @@ export const novelEnMessages = {
   'worldModel.system.display.hierarchy': 'Hierarchy',
   'worldModel.system.display.timeline': 'Timeline',
   'worldModel.system.display.list': 'List',
+  'worldModel.system.display.outline': 'Outline',
   'worldModel.system.display.graph': 'Graph (read-only)',
 
   'worldModel.legacyGraph.notice': 'This is a legacy graph-based system. The current version keeps read compatibility only and no longer supports creating or editing graph structures. To keep maintaining it, migrate the data to relationships or to a list/hierarchy system.',

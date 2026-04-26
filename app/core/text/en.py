@@ -83,6 +83,77 @@ Please output in the following format:
 
 Keep it concise, 300-500 words total.""",
 
+    PromptKey.VOLUME_OUTLINE_GEN: """You are a three-act plot architect. Plan volume divisions and write volume outlines from confirmed world context, chapter list, and optional user guidance.
+
+【Confirmed World Context】
+{world_context}
+
+【Existing Chapter List】
+{chapter_list}
+
+【Expected Total Chapters】
+{total_chapters}
+
+【Suggested Volume Count】
+{total_volumes_hint}
+
+【User Guidance】
+{user_guidance}
+
+【Output Requirements】
+Return only a JSON object, with no Markdown and no explanation:
+{{
+  "total_volumes": 3,
+  "volumes": [
+    {{
+      "volume_number": 1,
+      "volume_title": "Volume One · Example",
+      "chapter_start": 1,
+      "chapter_end": 20,
+      "outline_text": "A usable volume outline covering plot movement, character change, escalation, and ending hook.",
+      "chapters": []
+    }}
+  ]
+}}
+Volume numbers must start at 1 and increase; chapter ranges must be continuous and non-overlapping; outline_text must be directly usable as writing constraints.""",
+
+    PromptKey.CHAPTER_BRIEF_GEN: """You are a chapter suspense and pacing designer. Generate chapter briefs for the requested range from the current volume outline and chapter materials.
+
+【Confirmed World Context】
+{world_context}
+
+【Current Volume】
+Volume number: {volume_number}
+Volume title: {volume_title}
+Volume outline: {volume_outline}
+
+【Batch Chapter Range】
+Chapter {chapter_start} to Chapter {chapter_end}
+
+【Chapter Material Summaries】
+{chapter_contents}
+
+【Carry-Over】
+{carry}
+
+【User Guidance】
+{user_guidance}
+
+【Output Requirements】
+Return only a JSON object, with no Markdown and no explanation:
+{{
+  "chapters": [
+    {{
+      "chapter_number": 1,
+      "chapter_title": "Chapter title",
+      "brief_text": "This chapter's role, core function, conflict movement, foreshadowing operation, and ending hook.",
+      "suspense_density": "tight",
+      "cognitive_twist": 3
+    }}
+  ]
+}}
+chapter_number must cover every chapter in this batch; cognitive_twist is an integer from 1 to 5; brief_text must directly guide prose continuation.""",
+
     # ------------------------------------------------------------------
     # World generation: system prompt
     # ------------------------------------------------------------------
@@ -96,10 +167,11 @@ Principles:
 3) Relationships are directional: source = the active party / superior / owner / initiator; target = the passive party / subordinate / owned / recipient.
 4) Only output fields allowed by the schema — no metadata (e.g. id, origin, status, visibility).
 5) systems should primarily capture world rules, organizational structures, cultivation systems, historical periods, geographic structures, faction principles, taboo rules, etc. When the text provides sufficient information, break it into multiple items rather than writing a single vague summary.
-6) systems.display_type may only use three values:
+6) systems.display_type may only use these values:
    - list: default type, suitable for flat bullet points; items use only label/description.
    - hierarchy: use when there are parent-child, tier, or tree-like relationships; items use children for nesting.
    - timeline: use when there is a clear chronological order, historical phases, or event chronicles; items must provide time.
+   - outline: use only when the text explicitly provides novel volume divisions, volume outlines, or chapter brief structures.
 7) Do not output graph data, and do not attempt to generate coordinates, edges, or layout information.""",
 
     # ------------------------------------------------------------------
@@ -119,6 +191,7 @@ Requirements:
    - list: default; suitable for resource types, faction principles, taboo rules, system summaries, etc.
    - hierarchy: suitable for cultivation rank systems, org charts, power pyramids, geographical tiers, etc.; items need children nesting.
    - timeline: suitable for historical periods, event chronicles, dynasty changes, cataclysm sequences, etc.; items need time.
+   - outline: only for explicit novel volume/chapter outline structures; do not use it for ordinary world-building notes.
 6) systems should be as detailed as possible: when the text provides rules, ranks, factions, regions, systems, history, taboos, resources, tech paths, etc., break them into items rather than writing a single vague summary.
 7) If the text is very large, prioritize coverage — do not compress tens of thousands of characters into a handful of entries.
 

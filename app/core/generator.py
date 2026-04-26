@@ -21,6 +21,7 @@ from app.core.ai_client import ai_client
 from app.core.continuation_text import format_chapter_heading_for_prompt, format_next_chapter_reference
 from app.core.lore_manager import LoreManager
 from app.core.cache import cache_manager
+from app.core.outline_gen import fetch_outline_context
 from app.core.text import PromptKey, get_prompt
 from app.core.text.snippets import SnippetKey, get_snippet
 from app.config import get_settings, resolve_context_chapters
@@ -265,6 +266,12 @@ async def _build_continuation_prompt(
         locale=prompt_locale,
     )
 
+    outline_context_section = ""
+    outline_context = fetch_outline_context(db, novel_id, next_chapter)
+    if outline_context:
+        outline_context_section = f"\n{outline_context.format_for_prompt()}\n"
+        logger.info("Injecting outline context for novel %s chapter %s", novel_id, next_chapter)
+
     world_context_section = ""
     if use_core_memory and world_context and world_context.strip():
         world_context_section = f"\n<world_knowledge>\n{world_context.strip()}\n</world_knowledge>\n"
@@ -306,6 +313,8 @@ async def _build_continuation_prompt(
     combined_context = ""
     if world_context_section:
         combined_context += world_context_section
+    if outline_context_section:
+        combined_context += outline_context_section
     if lorebook_context:
         combined_context += lorebook_context
 

@@ -14,7 +14,7 @@ import uuid
 
 from app.config import get_settings as _get_settings
 from app.database import init_db
-from app.api import auth, novels, lorebook, dashboard, world, copilot
+from app.api import auth, novels, lorebook, dashboard, world, copilot, outline
 from app.api import llm as llm_api
 from app.api import prompts as prompts_api
 from app.api import usage as usage_api
@@ -137,6 +137,7 @@ app.include_router(lorebook.router)
 app.include_router(dashboard.router)
 app.include_router(usage_api.router)
 app.include_router(world.router)
+app.include_router(outline.router)
 app.include_router(copilot.router)
 app.include_router(llm_api.router)
 app.include_router(prompts_api.router)

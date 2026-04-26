@@ -31,6 +31,8 @@ class PromptKey(str, Enum):
     WORLD_GEN_SYSTEM = "world_gen_system"
     WORLD_GEN = "world_gen"
     BOOTSTRAP_REFINEMENT = "bootstrap_refinement"
+    VOLUME_OUTLINE_GEN = "volume_outline_gen"
+    CHAPTER_BRIEF_GEN = "chapter_brief_gen"
 
 
 # ---------------------------------------------------------------------------
