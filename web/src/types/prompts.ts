@@ -25,7 +25,7 @@ export interface PromptVersion {
   version: number
   createdAt: string
   summary: string
-  content: string
+  content?: string
   contentPreview: string
   current?: boolean
 }
