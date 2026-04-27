@@ -14,11 +14,29 @@ Contracts verified:
 
 from __future__ import annotations
 
+import sys
+
 import pytest
 
+import app.core.text.zh as zh
 from app.core.text import DEFAULT_LOCALE, PromptKey, get_prompt, register_templates
 from app.core.text import prompt_service
 from app.core.text.catalog import _catalogs
+
+
+@pytest.fixture(autouse=True)
+def _seed_builtin_prompt_cache() -> None:
+    prompt_service._cache.clear()
+    prompt_service._cache.update({key.value: value for key, value in zh._TEMPLATES.items()})
+    prompt_service._cache_loaded = True
+    sys.modules.pop("app.utils.prompts", None)
+    try:
+        yield
+    finally:
+        sys.modules.pop("app.utils.prompts", None)
+        prompt_service._cache.clear()
+        prompt_service._cache_loaded = False
+        register_templates(DEFAULT_LOCALE, zh._TEMPLATES)
 
 
 # -----------------------------------------------------------------------

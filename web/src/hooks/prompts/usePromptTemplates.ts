@@ -65,6 +65,18 @@ const PROMPT_META: Record<PromptKey, { title: string; category: PromptTemplateCa
     tags: ['引导', '候选词'],
     description: '根据候选词与共现关系优化世界观引导建议。',
   },
+  volume_outline_gen: {
+    title: '卷纲生成提示词',
+    category: 'outline',
+    tags: ['大纲', '卷纲'],
+    description: '结合世界观与章节列表规划卷划分，并生成每卷卷纲。',
+  },
+  chapter_brief_gen: {
+    title: '章纲生成提示词',
+    category: 'outline',
+    tags: ['大纲', '章纲'],
+    description: '基于已确认卷纲分批生成章纲、悬念密度与认知颠覆等级。',
+  },
 }
 
 const VARIABLE_DESCRIPTIONS: Record<string, string> = {
@@ -80,6 +92,17 @@ const VARIABLE_DESCRIPTIONS: Record<string, string> = {
   text: '待抽取的世界观设定文本',
   candidate_lines: '候选词列表（名称: 出现窗口数）',
   pair_lines: '候选词共现对列表',
+  chapter_list: '用于规划卷划分的章节列表',
+  total_chapters: '小说总章节数',
+  total_volumes_hint: '用户提供的总卷数建议',
+  user_guidance: '用户追加的生成指导',
+  volume_number: '当前生成的卷号',
+  volume_title: '当前卷标题',
+  volume_outline: '当前卷的卷纲文本',
+  chapter_start: '当前卷的起始章节号',
+  chapter_end: '当前卷的结束章节号',
+  chapter_contents: '当前批次章节内容或摘要',
+  carry: '跨批次承接说明',
 }
 
 function createContentPreview(content: string): string {

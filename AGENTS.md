@@ -29,11 +29,11 @@
 ## 开发与验证环境（强制）
 
 - 后端、Docker 镜像、Docker Compose 服务的依赖安装、测试、构建与运行必须发生在远端 Docker 环境中。
-- 前端 `web/` 的构建与开发验证例外：直接在远端宿主机 `web/` 目录执行 `npm run build` 或 `npm run dev -- --host 0.0.0.0`，不使用 Node 容器。
+- 前端 `web/` 的构建与开发验证例外：直接在远端宿主机 `web/` 目录执行 `npm run build` 或 `npm run dev -- --host 0.0.0.0`，不使用 Node 容器。执行任何 `npm` 相关命令前，必须先运行 `export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"` 加载 `nvm` 环境。
 - **禁止在本机安装任何依赖**（如 `apt`、`npm`、`pip`、`uv` 等 install 操作）。
-- **禁止在远端宿主机直接安装后端项目依赖**。后端依赖安装、测试、构建应发生在 Docker 容器或一次性 Docker 容器内。
+- **禁止在远端宿主机直接安装后端项目依赖**。后端依赖安装、测试、构建应发生在已有的 NovelWriter Docker 容器内（例如 `novelwriter_scngs_1`），不要再创建一次性 Python 容器作为验证环境。
 - 本机仅用于代码读取与修改；后端运行、构建、测试、lint、服务启动等操作统一在远端 Docker 环境中执行；前端构建与 dev server 按上一条在远端宿主机执行。
-- 编译/验证前置门禁：先阅读本文件与 `CLAUDE.md`，确认后端 Docker 边界与前端宿主机 npm 边界后，再开始执行验证命令。
+- 编译/验证前置门禁：先阅读本文件与 `CLAUDE.md`，确认后端 Docker 边界与前端宿主机 npm 边界；前端验收前需先 `source` 对应 `nvm` 脚本，再开始执行验证命令。
 
 ## 推荐工作流
 
@@ -93,7 +93,7 @@ docker compose down
 - 默认 `docker compose up -d --build` 使用生产镜像运行：镜像内包含后端 Python 环境与已构建的前端 `/app/static`，运行时只启动 `uvicorn`，由 FastAPI 同进程托管 API 与前端静态资源。
 - 生产镜像可以挂载后端代码到 `/app/app`，但默认命令没有 `--reload`，代码变更后需要重启容器才生效。
 - 生产镜像可以挂载已构建前端产物到 `/app/static`；直接挂载 `web/src` 不会自动构建为浏览器可访问页面。
-- 若需要前后端源码热更新，应使用开发模式：后端在 Docker 环境内以 `uvicorn app.main:app --reload --host 0.0.0.0 --port 8000` 启动，前端在远端宿主机 `web/` 目录以 `npm run dev -- --host 0.0.0.0` 启动，并通过 Vite 代理 `/api` 到后端。
+- 若需要前后端源码热更新，应使用开发模式：后端在 Docker 环境内以 `uvicorn app.main:app --reload --host 0.0.0.0 --port 8000` 启动，前端在远端宿主机 `web/` 目录先执行 `export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"`，再运行 `npm run dev -- --host 0.0.0.0`，并通过 Vite 代理 `/api` 到后端。
 - 开发模式中的后端依赖安装、测试、构建仍必须发生在远端 Docker 容器内；前端构建与 dev server 直接在远端宿主机执行，不使用 Node 容器。
 
 ## 构建与验证（远端 Docker 环境）
@@ -109,26 +109,26 @@ scripts/uv_run.sh ruff check app tests scripts
 scripts/uv_run.sh novwr --help
 ```
 
-执行这些命令时必须放在 Docker 环境中。若现有 `docker-compose.yml` 的运行镜像不包含开发依赖（例如 `pytest`、`ruff`），应使用远端的一次性开发容器或专用 dev compose 服务执行，不能回退到远端宿主机直接安装依赖。
+执行这些命令时必须放在已有的 NovelWriter Docker 容器中完成，不能回退到远端宿主机，也不要再使用一次性 `python:*` 容器作为后端验证环境。优先复用正在运行的 `novelwriter_scngs_1` 容器。
 
-示例（一次性开发容器，仅在远端 Docker 内安装依赖）：
+推荐命令：
 
 ```bash
-docker run --rm \
-  -v "$PWD:/workspace" \
-  -w /workspace \
-  python:3.13-slim \
-  bash -lc 'apt-get update && apt-get install -y --no-install-recommends curl ca-certificates build-essential && scripts/setup_python_env.sh && scripts/uv_run.sh ruff check app tests scripts && scripts/uv_run.sh pytest tests/'
+docker exec -i novelwriter_scngs_1 bash -lc 'cd /app && scripts/uv_run.sh ruff check app tests scripts'
+docker exec -i novelwriter_scngs_1 bash -lc 'cd /app && scripts/uv_run.sh pytest tests/'
+docker exec -i novelwriter_scngs_1 bash -lc 'cd /app && scripts/uv_run.sh novwr --help'
 ```
 
-> 注意：上述 `apt-get` 发生在一次性容器内，不得在远端宿主机或本机执行。
+若容器内尚未准备好开发依赖，应先基于该容器/镜像补齐项目环境，再在同一容器内继续验证；不得改用宿主机安装依赖，也不得改用一次性 Python 容器兜底。
 
 ### 前端（React/Vite）
 
-前端构建验证与开发服务直接在远端宿主机执行，不使用 Node 容器：
+前端构建验证与开发服务直接在远端宿主机执行，不使用 Node 容器；执行前先加载 `nvm`：
 
 ```bash
 cd /home/haizh/software/novelwriter/web
+export NVM_DIR="$HOME/.nvm"
+. "$NVM_DIR/nvm.sh"
 npm run build
 npm run dev -- --host 0.0.0.0
 ```
@@ -152,7 +152,7 @@ docker compose logs --tail=200 scngs
 ## 测试进程与容器清理（强制）
 
 - 执行调测指令后，必须清理临时容器和测试进程，确保远端环境还原到初始状态。
-- 使用 `docker run --rm` 创建的一次性容器会自动删除。
+- 本项目后端验证不再使用一次性 `docker run --rm` Python 容器；如历史遗留此类容器，验证后应主动确认其已退出并清理。
 - 使用 `docker compose up -d` 启动的服务，验证结束后如无继续保留需求，应执行：
   ```bash
   docker compose down

@@ -113,18 +113,15 @@ async def test_outline_stream_generates_volumes_and_chapters(db, novel, monkeypa
     assert system.data["volumes"][0]["outline_text"] == "入门与试炼。"
 
     with pytest.raises(ValueError, match="Approve volume outlines"):
-        _ = [
-            event
-            async for event in outline_gen.generate_outline_system_stream(
-                db=db,
-                novel_id=novel.id,
-                step="chapter",
-                volume_number=1,
-            )
-        ]
+        async for _event in outline_gen.generate_outline_system_stream(
+            db=db,
+            novel_id=novel.id,
+            step="chapter",
+            volume_number=1,
+        ):
+            pass
 
-    system.data["volumes"][0]["status"] = "approved"
-    db.commit()
+    outline_gen.approve_outline_system(db, novel.id, volume_number=1)
 
     chapter_events = [
         event
@@ -142,6 +139,37 @@ async def test_outline_stream_generates_volumes_and_chapters(db, novel, monkeypa
     assert len(system.data["volumes"][0]["chapters"]) == 2
     assert system.status == "draft"
     assert system.data["volumes"][0]["status"] == "draft"
+
+
+def test_outline_api_generate_stream_persists_volume_drafts(client, db, novel, monkeypatch):
+    from app.core import outline_gen
+    from app.core.outline_domain import OutlineVolumeDraft, VolumeOutlineOutput
+
+    mock = AsyncMock(
+        return_value=VolumeOutlineOutput(
+            total_volumes=1,
+            volumes=[
+                OutlineVolumeDraft(
+                    volume_number=1,
+                    volume_title="第一卷",
+                    chapter_start=1,
+                    chapter_end=2,
+                    outline_text="入门与试炼。",
+                )
+            ],
+        )
+    )
+    monkeypatch.setattr(outline_gen.ai_client, "generate_structured", mock)
+
+    resp = client.post(f"/api/novels/{novel.id}/outline/generate/stream", json={"step": "volume"})
+
+    assert resp.status_code == 200
+    events = [json.loads(line) for line in resp.text.splitlines() if line.strip()]
+    assert [event["type"] for event in events] == ["start", "volume_outline", "done"]
+
+    system = db.query(WorldSystem).filter(WorldSystem.novel_id == novel.id, WorldSystem.display_type == "outline").one()
+    assert system.status == "draft"
+    assert system.data["volumes"][0]["outline_text"] == "入门与试炼。"
 
 
 def test_outline_api_state_and_approve(client, db, novel):
