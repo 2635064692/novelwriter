@@ -341,6 +341,67 @@ export interface WorldpackImportResponse {
   warnings: WorldpackImportWarning[]
 }
 
+export type OutlineDraftStatus = 'draft' | 'approved'
+export type OutlineGenerateStep = 'volume' | 'chapter'
+
+export interface OutlineChapter {
+  chapter_number: number
+  chapter_title: string
+  brief_text: string
+  suspense_density: string | null
+  cognitive_twist: number | null
+  status: OutlineDraftStatus
+}
+
+export interface OutlineVolume {
+  volume_number: number
+  volume_title: string
+  chapter_start: number
+  chapter_end: number
+  outline_text: string
+  status: OutlineDraftStatus
+  chapters: OutlineChapter[]
+}
+
+export interface OutlineSystemData {
+  total_volumes: number | null
+  volumes: OutlineVolume[]
+}
+
+export interface OutlineSystem extends Omit<WorldSystem, 'display_type' | 'data'> {
+  display_type: 'outline'
+  data: OutlineSystemData
+}
+
+export interface OutlineSystemStateResponse {
+  exists: boolean
+  system: OutlineSystem | null
+}
+
+export interface OutlineGenerateRequest {
+  step: OutlineGenerateStep
+  volume_number?: number
+  total_volumes_hint?: number
+  user_guidance?: string
+  batch_size?: number
+}
+
+export interface OutlineApproveRequest {
+  volume_number?: number
+}
+
+export type OutlineStreamEvent =
+  | { type: 'start'; phase: 'volume_outline'; total_chapters: number; request_id?: string }
+  | { type: 'start'; phase: 'chapter_brief'; volumes_to_generate: number; request_id?: string }
+  | { type: 'volume_outline'; total_volumes: number | null; volume_number: number; volume_title: string; chapter_start: number; chapter_end: number; outline_text: string; request_id?: string }
+  | { type: 'volume_start'; volume_number: number; volume_title: string; chapter_start: number; chapter_end: number; outline_text: string; request_id?: string }
+  | { type: 'chapter_brief'; volume_number: number; chapter_number: number; chapter_title: string; brief_text: string; suspense_density: string | null; cognitive_twist: number | null; request_id?: string }
+  | { type: 'batch_done'; volume_number: number; batch: number; total_batches: number; request_id?: string }
+  | { type: 'volume_done'; volume_number: number; chapter_count: number; request_id?: string }
+  | { type: 'done'; phase: 'volume_outline'; system_id: number; volumes_generated: number; request_id?: string }
+  | { type: 'done'; phase: 'chapter_brief'; volumes_processed: number; chapters_generated: number; request_id?: string }
+  | { type: 'error'; message: string; code?: string; request_id?: string }
+
 // Auth types
 export interface QuotaResponse {
   generation_quota: number

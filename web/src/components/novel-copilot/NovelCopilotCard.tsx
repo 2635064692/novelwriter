@@ -1,8 +1,9 @@
-import { ChevronRight, Globe, Search, Sparkles } from 'lucide-react'
+import { BookOpen, ChevronRight, Globe, Search, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { WorldGenerationDialog } from '@/components/world-model/shared/WorldGenerationDialog'
+import { OutlineManagementDialog } from '@/components/world-model/shared/OutlineManagementDialog'
 import { BootstrapPanel } from '@/components/world-model/shared/BootstrapPanel'
 import { useUiLocale } from '@/contexts/UiLocaleContext'
 import { useNovelCopilot } from './NovelCopilotContext'
@@ -86,6 +87,7 @@ export function NovelCopilotCard({
   variant?: 'default' | 'compact'
 }) {
   const [genOpen, setGenOpen] = useState(false)
+  const [outlineOpen, setOutlineOpen] = useState(false)
   const { t } = useUiLocale()
   const navigate = useNavigate()
   const location = useLocation()
@@ -154,6 +156,15 @@ export function NovelCopilotCard({
         compact={compact}
       />
 
+      <ActionStrip
+        icon={BookOpen}
+        title={t('copilot.card.outlineManager')}
+        description={t('copilot.card.outlineManagerDescription')}
+        onClick={() => setOutlineOpen(true)}
+        testId="world-build-outline"
+        compact={compact}
+      />
+
       <div className={cn(compact ? 'px-2' : 'px-2.5 pt-0.5')}>
         <div className={cn('rounded-[12px] border border-[var(--nw-glass-border)] bg-background/10', compact ? 'px-1 py-0.5' : 'px-1.5 py-1')}>
           <BootstrapPanel novelId={novelId} variant="sidebar" />
@@ -161,6 +172,7 @@ export function NovelCopilotCard({
       </div>
 
       <WorldGenerationDialog novelId={novelId} open={genOpen} onOpenChange={setGenOpen} />
+      <OutlineManagementDialog novelId={novelId} open={outlineOpen} onOpenChange={setOutlineOpen} />
     </div>
   )
 }

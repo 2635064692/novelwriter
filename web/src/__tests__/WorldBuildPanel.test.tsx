@@ -117,6 +117,7 @@ describe('WorldBuildPanel', () => {
     expect(screen.getByText('打开全书研究')).toBeTruthy()
     expect(screen.getByText('Atlas 世界模型')).toBeTruthy()
     expect(screen.getByText('从设定生成草稿')).toBeTruthy()
+    expect(screen.getByTestId('world-build-outline')).toHaveTextContent('大纲管理')
     expect(screen.getByText('从章节提取')).toBeTruthy()
     expect(screen.getByTestId('novel-copilot-trigger')).toBeTruthy()
     expect(screen.getByText('当前世界尚未建立条目')).toBeTruthy()
