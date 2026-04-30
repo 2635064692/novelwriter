@@ -11,12 +11,13 @@ import { getSystemDisplayTypeLabel } from '@/lib/worldSystemDisplay'
 import { useUiLocale } from '@/contexts/UiLocaleContext'
 import type { WorldSystem, SystemDisplayType } from '@/types/api'
 
-const DISPLAY_TYPES: SystemDisplayType[] = ['hierarchy', 'timeline', 'list']
+const DISPLAY_TYPES: SystemDisplayType[] = ['hierarchy', 'timeline', 'list', 'outline']
 
 const INITIAL_DATA: Record<SystemDisplayType, Record<string, unknown>> = {
   hierarchy: { nodes: [] },
   timeline: { events: [] },
   list: { items: [] },
+  outline: { volumes: [] },
 }
 
 export function SystemNavigator({ novelId, selectedId, onSelect, onOpenDraftReview }: {

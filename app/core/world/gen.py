@@ -31,7 +31,7 @@ from app.core.text.snippets import SnippetKey, get_snippet
 logger = logging.getLogger(__name__)
 
 WORLDGEN_ORIGIN = "worldgen"
-WorldGenSystemDisplayType = Literal["list", "hierarchy", "timeline"]
+WorldGenSystemDisplayType = Literal["list", "hierarchy", "timeline", "outline"]
 
 
 class WorldGenEntity(BaseModel):
@@ -147,7 +147,7 @@ def _worldgen_warning(
 
 def _normalize_worldgen_system_display_type(display_type: str | None) -> WorldGenSystemDisplayType:
     normalized = _norm(display_type).lower()
-    if normalized in {"list", "hierarchy", "timeline"}:
+    if normalized in {"list", "hierarchy", "timeline", "outline"}:
         return cast(WorldGenSystemDisplayType, normalized)
     return "list"
 
@@ -359,6 +359,8 @@ def _build_worldgen_system_data(
             system_index=system_index,
             warnings=warnings,
         )
+    elif display_type == "outline":
+        raw_data = {"volumes": []}
     else:
         raw_data = _build_worldgen_list_data(list(system.items or []))
 

@@ -14,10 +14,29 @@ Contracts verified:
 
 from __future__ import annotations
 
+import sys
+
 import pytest
 
+import app.core.text.zh as zh
 from app.core.text import DEFAULT_LOCALE, PromptKey, get_prompt, register_templates
+from app.core.text import prompt_service
 from app.core.text.catalog import _catalogs
+
+
+@pytest.fixture(autouse=True)
+def _seed_builtin_prompt_cache() -> None:
+    prompt_service._cache.clear()
+    prompt_service._cache.update({key.value: value for key, value in zh._TEMPLATES.items()})
+    prompt_service._cache_loaded = True
+    sys.modules.pop("app.utils.prompts", None)
+    try:
+        yield
+    finally:
+        sys.modules.pop("app.utils.prompts", None)
+        prompt_service._cache.clear()
+        prompt_service._cache_loaded = False
+        register_templates(DEFAULT_LOCALE, zh._TEMPLATES)
 
 
 # -----------------------------------------------------------------------
@@ -34,6 +53,29 @@ def test_all_keys_resolve(key: PromptKey) -> None:
 # -----------------------------------------------------------------------
 # 2. Backward-compat shim matches catalog
 # -----------------------------------------------------------------------
+
+
+def test_default_lookup_uses_db_cache_before_catalog() -> None:
+    prompt_service._cache[PromptKey.SYSTEM.value] = "db-system"
+    register_templates(DEFAULT_LOCALE, {PromptKey.SYSTEM: "catalog-system"})
+    try:
+        assert get_prompt(PromptKey.SYSTEM) == "db-system"
+    finally:
+        prompt_service._cache.pop(PromptKey.SYSTEM.value, None)
+        import app.core.text.zh as zh
+
+        register_templates(DEFAULT_LOCALE, zh._TEMPLATES)
+
+
+def test_explicit_locale_lookup_prefers_catalog_before_single_language_db() -> None:
+    prompt_service._cache[PromptKey.SYSTEM.value] = "db-system"
+    register_templates("testlang", {PromptKey.SYSTEM: "base-system"})
+    try:
+        assert get_prompt(PromptKey.SYSTEM, locale="testlang-region") == "base-system"
+    finally:
+        prompt_service._cache.pop(PromptKey.SYSTEM.value, None)
+        _catalogs.pop("testlang", None)
+
 
 def test_shim_matches_catalog() -> None:
     from app.utils.prompts import (
@@ -146,6 +188,34 @@ def test_world_gen_template_has_expected_placeholders() -> None:
     assert "directive" in formatted
 
 
+def test_outline_generation_templates_have_expected_placeholders() -> None:
+    volume_tpl = get_prompt(PromptKey.VOLUME_OUTLINE_GEN)
+    volume_prompt = volume_tpl.format(
+        world_context="world",
+        chapter_list="chapters",
+        total_chapters=100,
+        total_volumes_hint="5",
+        user_guidance="guidance",
+    )
+    assert "world" in volume_prompt
+    assert "chapters" in volume_prompt
+
+    chapter_tpl = get_prompt(PromptKey.CHAPTER_BRIEF_GEN)
+    chapter_prompt = chapter_tpl.format(
+        world_context="world",
+        volume_number=1,
+        volume_title="title",
+        volume_outline="outline",
+        chapter_start=1,
+        chapter_end=2,
+        chapter_contents="contents",
+        carry="carry",
+        user_guidance="guidance",
+    )
+    assert "outline" in chapter_prompt
+    assert "contents" in chapter_prompt
+
+
 def test_world_gen_prompts_describe_supported_system_shapes() -> None:
     system_tpl = get_prompt(PromptKey.WORLD_GEN_SYSTEM)
     user_tpl = get_prompt(PromptKey.WORLD_GEN)
@@ -153,10 +223,12 @@ def test_world_gen_prompts_describe_supported_system_shapes() -> None:
     assert "display_type" in system_tpl
     assert "hierarchy" in system_tpl
     assert "timeline" in system_tpl
+    assert "outline" in system_tpl
     assert "不要输出 graph" in system_tpl
     assert "display_type" in user_tpl
     assert "children" in user_tpl
     assert "time" in user_tpl
+    assert "outline" in user_tpl
 
 
 # -----------------------------------------------------------------------

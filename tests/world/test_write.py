@@ -169,6 +169,35 @@ def test_normalize_system_data_for_write_rejects_unknown_display_type():
         normalize_system_data_for_write("bogus", {})
 
 
+def test_normalize_system_data_for_write_accepts_outline_data():
+    normalized = normalize_system_data_for_write(
+        "outline",
+        {
+            "total_volumes": 1,
+            "volumes": [
+                {
+                    "volume_number": 1,
+                    "volume_title": "第一卷",
+                    "chapter_start": 1,
+                    "chapter_end": 3,
+                    "outline_text": "卷纲",
+                    "chapters": [
+                        {
+                            "chapter_number": 1,
+                            "chapter_title": "起点",
+                            "brief_text": "章纲",
+                            "cognitive_twist": 3,
+                        }
+                    ],
+                }
+            ],
+        },
+    )
+
+    assert normalized["total_volumes"] == 1
+    assert normalized["volumes"][0]["chapters"][0]["brief_text"] == "章纲"
+
+
 def test_normalize_system_data_for_write_preserves_validation_error_shape():
     with pytest.raises(ValidationError):
         normalize_system_data_for_write(

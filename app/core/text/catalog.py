@@ -31,6 +31,8 @@ class PromptKey(str, Enum):
     WORLD_GEN_SYSTEM = "world_gen_system"
     WORLD_GEN = "world_gen"
     BOOTSTRAP_REFINEMENT = "bootstrap_refinement"
+    VOLUME_OUTLINE_GEN = "volume_outline_gen"
+    CHAPTER_BRIEF_GEN = "chapter_brief_gen"
 
 
 # ---------------------------------------------------------------------------
@@ -66,15 +68,37 @@ def get_prompt(
     """Return the template string for *key*.
 
     Lookup order:
-    1. Exact *locale* match.
-    2. DEFAULT_LOCALE fallback.
+    1. DB-backed cache (production path, warmed at startup).
+    2. Legacy in-memory catalog (fallback for tests without a DB).
 
     *provider* is accepted for forward compatibility but does not yet
     influence selection.
 
     Raises ``KeyError`` if no template is found.
     """
-    for candidate in get_language_fallback_chain(locale, default=DEFAULT_LOCALE):
+    candidates = get_language_fallback_chain(locale, default=DEFAULT_LOCALE)
+
+    # Path 1: Preserve explicit non-default locale catalogs until prompt storage
+    # grows a locale column. Default-language lookups still use DB first so
+    # runtime edits are visible to existing consumers that pass locale="zh".
+    if locale is not None:
+        for candidate in candidates:
+            if candidate == DEFAULT_LOCALE:
+                continue
+            catalog = _catalogs.get(candidate)
+            if catalog and key in catalog:
+                return catalog[key]
+
+    # Path 2: DB-backed cache for the default single-language runtime path.
+    try:
+        from app.core.text.prompt_service import get_cached_prompt
+
+        return get_cached_prompt(key)
+    except (KeyError, ImportError):
+        pass
+
+    # Path 3: Legacy in-memory catalog (tests / no-DB environments).
+    for candidate in candidates:
         catalog = _catalogs.get(candidate)
         if catalog and key in catalog:
             return catalog[key]

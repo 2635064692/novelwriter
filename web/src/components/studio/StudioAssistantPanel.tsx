@@ -1,5 +1,5 @@
 import { Bot } from 'lucide-react'
-import { useUiLocale } from '@/contexts/UiLocaleContext'
+
 import { cn } from '@/lib/utils'
 import { WorldBuildPanel } from '@/components/world-model/shared/WorldBuildPanel'
 
@@ -16,8 +16,6 @@ export function StudioAssistantPanel({
   }
   className?: string
 }) {
-  const { t } = useUiLocale()
-
   return (
     <div className={cn('flex h-full min-h-0 flex-col', className)} data-testid="studio-assistant-rail">
       <div className="nw-scrollbar-thin min-h-0 flex-1 overflow-y-auto pr-1 space-y-1.5">

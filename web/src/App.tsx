@@ -16,6 +16,7 @@ const Terms = lazy(() => import('@/pages/Terms'))
 const Privacy = lazy(() => import('@/pages/Privacy'))
 const CopyrightNotice = lazy(() => import('@/pages/CopyrightNotice'))
 const LibraryPage = lazy(() => import('@/pages/LibraryPage').then((module) => ({ default: module.LibraryPage })))
+const PromptManagementPage = lazy(() => import('@/pages/PromptManagementPage').then((module) => ({ default: module.PromptManagementPage })))
 const NovelStudioPage = lazy(() => import('@/pages/NovelStudioPage').then((module) => ({ default: module.NovelStudioPage })))
 const GenerationResults = lazy(() => import('@/pages/GenerationResults').then((module) => ({ default: module.GenerationResults })))
 const NovelAtlasPage = lazy(() => import('@/pages/NovelAtlasPage').then((module) => ({ default: module.NovelAtlasPage })))
@@ -73,6 +74,7 @@ export default function App() {
 
                   <Route element={<RequireAuth />}>
                     <Route path="/library" element={<LibraryPage />} />
+                    <Route path="/prompts" element={<PromptManagementPage />} />
                     {/* Novel routes share one Studio/Atlas shell so shell state and agent sessions survive surface switches. */}
                     <Route element={<NovelShell />}>
                       <Route element={<Layout />}>

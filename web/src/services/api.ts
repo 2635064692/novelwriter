@@ -29,6 +29,10 @@ import type {
   BootstrapTriggerRequest,
   WorldpackImportResponse,
   WorldpackV1,
+  OutlineApproveRequest,
+  OutlineGenerateRequest,
+  OutlineStreamEvent,
+  OutlineSystemStateResponse,
 } from '@/types/api'
 import {
   ApiError,
@@ -163,22 +167,22 @@ export const api = {
     }),
 }
 
-export async function* streamContinuation(
-  novelId: number,
-  data: ContinueRequest,
-  opts?: { signal?: AbortSignal },
-): AsyncGenerator<StreamEvent> {
+async function* streamNdjson<T>(
+  path: string,
+  body: unknown,
+  opts?: { signal?: AbortSignal; useLlmHeaders?: boolean },
+): AsyncGenerator<T> {
   const maxRetries = 2
   let resp: Response | null = null
   for (let attempt = 0; ; attempt++) {
-    resp = await fetch(`${BASE_URL}/api/novels/${novelId}/continue/stream`, {
+    resp = await fetch(`${BASE_URL}${path}`, {
       method: 'POST',
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
-        ...llmHeaders(),
+        ...(opts?.useLlmHeaders ? llmHeaders() : {}),
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify(body),
       signal: opts?.signal,
     })
     if (resp.status === 503 && attempt < maxRetries) {
@@ -196,12 +200,13 @@ export async function* streamContinuation(
     const parsed = await parseErrorDetail(resp!)
     throw createApiError(resp!.status, parsed)
   }
-  const reader = resp!.body!.getReader()
+  if (!resp!.body) throw new Error('Streaming response body is empty')
+  const reader = resp!.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
-  const parseLine = (line: string): StreamEvent => {
+  const parseLine = (line: string): T => {
     try {
-      return JSON.parse(line) as StreamEvent
+      return JSON.parse(line) as T
     } catch {
       const preview = line.length > 200 ? line.slice(0, 200) + '...' : line
       throw new Error(`Malformed NDJSON line: ${preview}`)
@@ -219,6 +224,28 @@ export async function* streamContinuation(
   }
   const tail = buffer.trim()
   if (tail) yield parseLine(tail)
+}
+
+export async function* streamContinuation(
+  novelId: number,
+  data: ContinueRequest,
+  opts?: { signal?: AbortSignal },
+): AsyncGenerator<StreamEvent> {
+  yield* streamNdjson<StreamEvent>(`/api/novels/${novelId}/continue/stream`, data, {
+    signal: opts?.signal,
+    useLlmHeaders: true,
+  })
+}
+
+export async function* streamOutlineGeneration(
+  novelId: number,
+  data: OutlineGenerateRequest,
+  opts?: { signal?: AbortSignal },
+): AsyncGenerator<OutlineStreamEvent> {
+  yield* streamNdjson<OutlineStreamEvent>(`/api/novels/${novelId}/outline/generate/stream`, data, {
+    signal: opts?.signal,
+    useLlmHeaders: true,
+  })
 }
 
 export { ApiError, copilotApi, llmHeaders }
@@ -338,6 +365,12 @@ export const worldApi = {
     fetchJson<BatchConfirmResponse>(`${BASE_URL}/api/novels/${novelId}/world/systems/confirm`, 'POST', { ids }),
   rejectSystems: (novelId: number, ids: number[]) =>
     fetchJson<{ rejected: number }>(`${BASE_URL}/api/novels/${novelId}/world/systems/reject`, 'POST', { ids }),
+
+  // Outline
+  getOutlineState: (novelId: number) =>
+    authFetch<OutlineSystemStateResponse>(`${BASE_URL}/api/novels/${novelId}/outline`),
+  approveOutline: (novelId: number, data: OutlineApproveRequest) =>
+    fetchJson(`${BASE_URL}/api/novels/${novelId}/outline/approve`, 'POST', data),
 
   // Bootstrap
   triggerBootstrap: (novelId: number, data: BootstrapTriggerRequest) =>

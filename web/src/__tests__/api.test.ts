@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { api, ApiError, copilotApi, streamContinuation, worldApi } from '@/services/api'
+import { api, ApiError, copilotApi, streamContinuation, streamOutlineGeneration, worldApi } from '@/services/api'
 import { clearLlmConfig, setLlmConfig } from '@/lib/llmConfigStore'
 
 describe('api service', () => {
@@ -233,6 +233,51 @@ describe('api service', () => {
     }
 
     expect(events.map(e => e.type)).toEqual(['start', 'done'])
+    const init = (fetch as unknown as { mock: { calls: Array<[string, RequestInit]> } }).mock.calls[0][1]
+    const headers = init.headers as Record<string, string>
+    expect(headers['X-LLM-Base-Url']).toBe('http://example.com/v1')
+    expect(headers['X-LLM-Api-Key']).toBe('sk-test')
+    expect(headers['X-LLM-Model']).toBe('m')
+  })
+
+
+  it('streamOutlineGeneration flushes final unterminated NDJSON line', async () => {
+    const ndjson =
+      '{"type":"start","phase":"volume_outline","total_chapters":12}\n{"type":"done","phase":"volume_outline","system_id":3,"volumes_generated":2}'
+    const encoder = new TextEncoder()
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(ndjson))
+        controller.close()
+      },
+    })
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(stream, { status: 200 }))
+
+    const events: Array<{ type: string }> = []
+    for await (const event of streamOutlineGeneration(1, { step: 'volume' })) {
+      events.push(event)
+    }
+    expect(events.map(event => event.type)).toEqual(['start', 'done'])
+  })
+
+  it('streamOutlineGeneration attaches BYOK LLM headers', async () => {
+    setLlmConfig({ baseUrl: 'http://example.com/v1', apiKey: 'sk-test', model: 'm' })
+
+    const ndjson = '{"type":"start","phase":"volume_outline","total_chapters":12}\n{"type":"done","phase":"volume_outline","system_id":3,"volumes_generated":2}\n'
+    const encoder = new TextEncoder()
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(ndjson))
+        controller.close()
+      },
+    })
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(stream, { status: 200 }))
+
+    for await (const event of streamOutlineGeneration(1, { step: 'volume' })) {
+      void event
+    }
+
     const init = (fetch as unknown as { mock: { calls: Array<[string, RequestInit]> } }).mock.calls[0][1]
     const headers = init.headers as Record<string, string>
     expect(headers['X-LLM-Base-Url']).toBe('http://example.com/v1')

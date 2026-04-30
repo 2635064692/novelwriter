@@ -112,7 +112,6 @@ worldpack.*.json
 
 # Claude Code local config (hooks, agents, commands change on trellis upgrade)
 .claude/
-AGENTS.md
 test-results/
 .agent/
 test-results/

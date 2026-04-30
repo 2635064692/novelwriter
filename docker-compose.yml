@@ -1,14 +1,22 @@
 services:
   scngs:
-    build: .
+    build:
+      context: .
+      network: host
     ports:
-      # Default to localhost-only to keep selfhost mode private-by-default.
-      - "127.0.0.1:8000:8000"
+      # Default to all interfaces for remote selfhost access.
+      - "${NOVWR_BIND_HOST:-0.0.0.0}:${NOVWR_PORT:-8000}:8000"
     volumes:
-      - scngs-data:/data
+      - scngs-data:${SCNGS_DATA_DIR:-/data}
+    env_file:
+      - .env
     environment:
-      - DEPLOY_MODE=selfhost
-      - DATABASE_URL=sqlite:////data/scngs.db
-      - SCNGS_DATA_DIR=/data
+      DEPLOY_MODE: ${DEPLOY_MODE:-selfhost}
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////data/scngs.db}
+      SCNGS_DATA_DIR: ${SCNGS_DATA_DIR:-/data}
+    extra_hosts:
+      # Allows DATABASE_URL to use host.docker.internal for a PostgreSQL
+      # service started separately on the Docker host.
+      - "host.docker.internal:host-gateway"
 volumes:
   scngs-data:

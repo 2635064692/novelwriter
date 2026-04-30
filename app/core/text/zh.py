@@ -83,6 +83,77 @@ PromptKey.CONTINUATION: """<novel_info>
 
 请保持简洁，总字数300-500字。""",
 
+    PromptKey.VOLUME_OUTLINE_GEN: """你是三幕式情节架构师，请基于已确认世界观、章节列表和用户补充要求，为长篇小说规划卷划分并生成卷纲。
+
+【已确认世界观】
+{world_context}
+
+【已有章节列表】
+{chapter_list}
+
+【预计总章节数】
+{total_chapters}
+
+【建议卷数】
+{total_volumes_hint}
+
+【用户补充要求】
+{user_guidance}
+
+【输出要求】
+仅输出 JSON 对象，不要 Markdown，不要解释。结构如下：
+{{
+  "total_volumes": 3,
+  "volumes": [
+    {{
+      "volume_number": 1,
+      "volume_title": "第一卷·示例",
+      "chapter_start": 1,
+      "chapter_end": 20,
+      "outline_text": "本卷卷纲，说明主线推进、角色变化、冲突升级和阶段结尾钩子。",
+      "chapters": []
+    }}
+  ]
+}}
+卷号必须从 1 开始递增；章节范围必须连续且不重叠；outline_text 要可直接作为续写约束使用。""",
+
+    PromptKey.CHAPTER_BRIEF_GEN: """你是章节悬念节奏设计师，请基于当前卷纲和章节素材，为指定章节范围逐章生成章纲。
+
+【已确认世界观】
+{world_context}
+
+【当前卷】
+卷号：{volume_number}
+卷名：{volume_title}
+卷纲：{volume_outline}
+
+【本批章节范围】
+第 {chapter_start} 章 至 第 {chapter_end} 章
+
+【章节素材摘要】
+{chapter_contents}
+
+【承接信息】
+{carry}
+
+【用户补充要求】
+{user_guidance}
+
+【输出要求】
+仅输出 JSON 对象，不要 Markdown，不要解释。结构如下：
+{{
+  "chapters": [
+    {{
+      "chapter_number": 1,
+      "chapter_title": "章节标题",
+      "brief_text": "本章定位、核心作用、冲突推进、伏笔操作和结尾钩子。",
+      "suspense_density": "紧凑",
+      "cognitive_twist": 3
+    }}
+  ]
+}}
+chapter_number 必须覆盖本批范围内每一章；cognitive_twist 为 1-5 的整数；brief_text 要能直接指导正文续写。""",
+
     # ------------------------------------------------------------------
     # World generation: system prompt
     # ------------------------------------------------------------------
@@ -96,10 +167,11 @@ PromptKey.CONTINUATION: """<novel_info>
 3) 关系有方向：source 表示主动方 / 上位方 / 拥有者 / 发起动作的一方；target 表示被动方 / 下位方 / 被拥有者 / 承受动作的一方。
 4) 仅输出 schema 允许的字段，不要输出任何元数据（例如 id、origin、status、visibility 等）。
 5) systems 应优先承载世界规则、组织制度、修炼体系、历史分期、地理结构、阵营原则、禁忌规则等成组设定；当文本信息充分时，请拆成多个 items，而不是只写一句笼统概括。
-6) systems.display_type 只能使用三种：
+6) systems.display_type 只能使用以下类型：
    - list：默认类型，适合平铺要点；items 只写 label/description。
    - hierarchy：存在上下级、层级、树状归属时使用；items 用 children 表达嵌套结构。
    - timeline：存在明确时间顺序、历史阶段、大事件年表时使用；items 必须提供 time。
+   - outline：适合小说大纲体系；存储卷划分与章纲结构；volumes 包含每卷的章节范围、卷纲文本和嵌套的章纲（chapters）。
 7) 不要输出 graph，也不要尝试生成坐标、边或布局信息。""",
 
     # ------------------------------------------------------------------
@@ -119,6 +191,7 @@ PromptKey.CONTINUATION: """<novel_info>
    - list：默认；适合修炼资源种类、阵营原则、禁忌规则、制度要点等平铺信息。
    - hierarchy：适合修炼等级体系、组织架构、权力金字塔、地域层级等树状结构；items 需用 children 嵌套。
    - timeline：适合历史分期、大事件年表、王朝更替、灾变顺序等时间结构；items 需填写 time。
+   - outline：仅当文本明确提供小说卷划分、卷纲或章纲结构时使用；普通世界观设定不要使用 outline。
 6) systems 要尽量细化：当文本提供了规则、等级、阵营、地域、制度、历史阶段、禁忌、资源、技术路线等要点时，应拆成 items，而不是只写一条模糊 summary。
 7) 若文本信息量很大，请优先保证覆盖率，不要把几万字设定压缩成寥寥几个条目。
 
