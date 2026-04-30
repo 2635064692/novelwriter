@@ -16,6 +16,7 @@ dependencies = [
     "openai>=1.50.0",
     "passlib[bcrypt]>=1.7.4",
     "psycopg2-binary>=2.9.9",
+    "pymysql>=1.1.0",
     "pyahocorasick>=2.0.0",
     "pydantic>=2.10.0",
     "pydantic-settings>=2.6.0",
