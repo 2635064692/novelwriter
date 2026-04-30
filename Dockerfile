@@ -27,6 +27,10 @@ FROM python:3.13-slim AS backend-build
 COPY --from=uv-installer /uv-bin/ /usr/local/bin/
 WORKDIR /app
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends gcc libc6-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 ENV UV_PROJECT_ENVIRONMENT=/app/.venv
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
