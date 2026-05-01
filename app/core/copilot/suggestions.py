@@ -8,13 +8,14 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, get_args
 
 from sqlalchemy.orm import Session
 
 from app.core.copilot.messages import CopilotTextKey, get_copilot_text
 from app.core.copilot.scope import EvidenceItem, ScopeSnapshot
 from app.models import CopilotRun, WorldEntity
+from app.schemas import SystemDisplayType
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +69,15 @@ class CompiledSuggestion:
 
 def _normalize_entity_name_key(name: str | None) -> str:
     return (name or "").strip().casefold()
+
+
+_VALID_DISPLAY_TYPES = frozenset(get_args(SystemDisplayType))
+
+
+def _sanitize_display_type(raw: object) -> str:
+    if isinstance(raw, str) and raw in _VALID_DISPLAY_TYPES:
+        return raw
+    return "list"
 
 
 def _find_existing_entity_by_name_or_alias(
@@ -586,7 +596,7 @@ def _build_create_action(
         for system in snapshot.systems:
             if system.name == name:
                 return None
-        data = {"name": name, "display_type": delta.get("display_type", "list")}
+        data = {"name": name, "display_type": _sanitize_display_type(delta.get("display_type", "list"))}
         if delta.get("description"):
             data["description"] = delta["description"]
         if delta.get("constraints"):
