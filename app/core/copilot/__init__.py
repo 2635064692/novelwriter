@@ -774,16 +774,14 @@ def list_session_runs(db: Session, copilot_session_id: int) -> list[CopilotRun]:
     )
 
 
-def _build_follow_up_conversation_messages(prior_runs: list[CopilotRun]) -> list[dict[str, str]]:
+def _build_follow_up_conversation_messages(prior_runs: list) -> list[dict[str, str]]:
     """Convert prior completed runs into reusable user/assistant turns."""
     messages: list[dict[str, str]] = []
-    for prior_run in prior_runs:
-        if prior_run.status != "completed":
-            continue
-        prompt = (prior_run.prompt or "").strip()
+    for row in prior_runs:
+        prompt = (row.prompt or "").strip()
         if prompt:
             messages.append({"role": "user", "content": prompt})
-        answer = (prior_run.answer or "").strip()
+        answer = (row.answer or "").strip()
         if answer:
             messages.append({"role": "assistant", "content": answer})
     return messages
@@ -888,7 +886,12 @@ async def execute_copilot_run(
         follow_up_workspace_seed: dict[str, Any] | None = None
         if inherited_workspace is None:
             prior_completed_runs = (
-                db.query(CopilotRun)
+                db.query(
+                    CopilotRun.id,
+                    CopilotRun.prompt,
+                    CopilotRun.answer,
+                    CopilotRun.workspace_json,
+                )
                 .filter(
                     CopilotRun.copilot_session_id == session.id,
                     CopilotRun.id != run.id,

@@ -478,6 +478,9 @@ class CopilotRun(Base):
         Index("ix_copilot_runs_session_status", "copilot_session_id", "status"),
         Index("ix_copilot_runs_user_status", "user_id", "status"),
         Index("ix_copilot_runs_status_lease", "status", "lease_expires_at"),
+        # Partial unique index: only enforced for SQLite/PostgreSQL.
+        # MySQL does not support filtered indexes, so we rely solely on
+        # application-level admission control (_count_active_runs_in_session).
         Index(
             "uq_copilot_runs_active_session",
             "copilot_session_id",
