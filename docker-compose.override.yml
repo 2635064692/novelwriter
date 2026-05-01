@@ -1,0 +1,5 @@
+services:
+  scngs:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
