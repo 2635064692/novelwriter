@@ -10,3 +10,4 @@ COPY web/dist/ /app/static/
 COPY app/ /app/app/
 COPY alembic/ /app/alembic/
 COPY data/ /app/data/
+COPY resources/key/isrgrootx1.pem /app/resources/key/isrgrootx1.pem
