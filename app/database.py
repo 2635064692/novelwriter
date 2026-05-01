@@ -33,6 +33,19 @@ if _dialect == "sqlite":
         cursor.execute("PRAGMA synchronous=NORMAL")
         cursor.execute("PRAGMA busy_timeout=5000")
         cursor.close()
+elif _dialect == "mysql":
+    _mysql_connect_args: dict = {"charset": "utf8mb4"}
+    _mysql_ssl_ca = os.getenv("MYSQL_SSL_CA")
+    if _mysql_ssl_ca:
+        _mysql_connect_args["ssl"] = {"ca": _mysql_ssl_ca}
+    elif os.getenv("MYSQL_SSL", "").lower() in {"1", "true", "yes"}:
+        _mysql_connect_args["ssl"] = {}
+    engine = create_engine(
+        DATABASE_URL,
+        pool_size=5,
+        max_overflow=10,
+        connect_args=_mysql_connect_args,
+    )
 else:
     engine = create_engine(DATABASE_URL, pool_size=5, max_overflow=10)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
