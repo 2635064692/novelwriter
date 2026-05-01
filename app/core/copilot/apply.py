@@ -339,20 +339,14 @@ def _execute_apply_action(
     if action_type == "create_entity":
         validated = WorldEntityCreate.model_validate(data)
         payload = {**validated.model_dump(), "origin": "manual", "status": "confirmed"}
-        try:
-            entity = world_crud.stage_create_entity(novel_id, payload, db)
-        except WorldCrudError as exc:
-            if exc.code != "entity_name_conflict":
-                raise
-            existing = (
-                db.query(WorldEntity)
-                .filter(WorldEntity.novel_id == novel_id, WorldEntity.name == payload["name"])
-                .order_by(WorldEntity.id.desc())
-                .first()
-            )
-            if existing is None:
-                raise
-            entity = existing
+        name = payload.get("name")
+        existing = (
+            db.query(WorldEntity)
+            .filter(WorldEntity.novel_id == novel_id, WorldEntity.name == name)
+            .order_by(WorldEntity.id.desc())
+            .first()
+        ) if name else None
+        entity = existing or world_crud.stage_create_entity(novel_id, payload, db)
         for attr_action in action.get("deferred_attribute_actions", []):
             attr_data = attr_action.get("data", {})
             attr_validated = WorldAttributeCreate.model_validate(attr_data)
