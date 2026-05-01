@@ -14,6 +14,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
+from sqlalchemy.dialects.mysql import LONGBLOB
 from sqlalchemy.orm import relationship, validates
 from sqlalchemy.sql import func
 from app.database import Base
@@ -38,7 +39,7 @@ class Novel(Base):
     language = Column(String(50), nullable=False, default=DEFAULT_LANGUAGE)
     file_path = Column(String(512), nullable=False)
     total_chapters = Column(Integer, default=0)
-    window_index = Column(LargeBinary, nullable=True)
+    window_index = Column(LargeBinary().with_variant(LONGBLOB(), "mysql"), nullable=True)
     window_index_status = Column(String(20), nullable=False, default="missing")
     window_index_revision = Column(Integer, nullable=False, default=0)
     window_index_built_revision = Column(Integer, nullable=True)
@@ -478,6 +479,9 @@ class CopilotRun(Base):
         Index("ix_copilot_runs_session_status", "copilot_session_id", "status"),
         Index("ix_copilot_runs_user_status", "user_id", "status"),
         Index("ix_copilot_runs_status_lease", "status", "lease_expires_at"),
+        # Partial unique index: only enforced for SQLite/PostgreSQL.
+        # MySQL does not support filtered indexes, so we rely solely on
+        # application-level admission control (_count_active_runs_in_session).
         Index(
             "uq_copilot_runs_active_session",
             "copilot_session_id",

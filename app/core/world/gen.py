@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from typing import Literal, cast
+from typing import cast, get_args
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.exc import IntegrityError
@@ -22,6 +22,7 @@ from app.config import get_settings
 from app.language import resolve_prompt_locale
 from app.models import Novel, WorldEntity, WorldRelationship, WorldSystem
 from app.schemas import (
+    SystemDisplayType,
     WorldGenerateResponse,
     WorldGenerateWarning,
 )
@@ -31,7 +32,7 @@ from app.core.text.snippets import SnippetKey, get_snippet
 logger = logging.getLogger(__name__)
 
 WORLDGEN_ORIGIN = "worldgen"
-WorldGenSystemDisplayType = Literal["list", "hierarchy", "timeline", "outline"]
+WorldGenSystemDisplayType = SystemDisplayType
 
 
 class WorldGenEntity(BaseModel):
@@ -147,7 +148,7 @@ def _worldgen_warning(
 
 def _normalize_worldgen_system_display_type(display_type: str | None) -> WorldGenSystemDisplayType:
     normalized = _norm(display_type).lower()
-    if normalized in {"list", "hierarchy", "timeline", "outline"}:
+    if normalized in get_args(SystemDisplayType):
         return cast(WorldGenSystemDisplayType, normalized)
     return "list"
 

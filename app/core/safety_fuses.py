@@ -79,6 +79,11 @@ def hosted_signup_lock(db: Session):
 
     if dialect == "sqlite":
         db.connection().exec_driver_sql("BEGIN IMMEDIATE")
+    elif dialect == "mysql":
+        db.execute(
+            text("SELECT GET_LOCK(:lock_name, :timeout)"),
+            {"lock_name": f"novwr_signup_{_HOSTED_SIGNUP_LOCK_KEY}", "timeout": 5},
+        )
     elif dialect == "postgresql":
         db.execute(
             text("SELECT pg_advisory_xact_lock(:lock_key)"),

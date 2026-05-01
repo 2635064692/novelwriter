@@ -167,14 +167,23 @@ def upgrade() -> None:
             unique=False,
         )
     if "uq_copilot_runs_active_session" not in run_indexes:
-        op.create_index(
-            "uq_copilot_runs_active_session",
-            "copilot_runs",
-            ["copilot_session_id"],
-            unique=True,
-            sqlite_where=sa.text("status IN ('queued', 'running')"),
-            postgresql_where=sa.text("status IN ('queued', 'running')"),
-        )
+        bind = op.get_bind()
+        if bind.dialect.name == "mysql":
+            op.create_index(
+                "ix_copilot_runs_session_active",
+                "copilot_runs",
+                ["copilot_session_id", "status"],
+                unique=False,
+            )
+        else:
+            op.create_index(
+                "uq_copilot_runs_active_session",
+                "copilot_runs",
+                ["copilot_session_id"],
+                unique=True,
+                sqlite_where=sa.text("status IN ('queued', 'running')"),
+                postgresql_where=sa.text("status IN ('queued', 'running')"),
+            )
 
 
 def downgrade() -> None:

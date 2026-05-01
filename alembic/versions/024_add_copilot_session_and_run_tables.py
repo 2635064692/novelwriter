@@ -218,6 +218,7 @@ def upgrade() -> None:
             unique=True,
             sqlite_where=sa.text("status IN ('queued', 'running')"),
             postgresql_where=sa.text("status IN ('queued', 'running')"),
+            mysql_where=sa.text("status IN ('queued', 'running')"),
         )
 
 

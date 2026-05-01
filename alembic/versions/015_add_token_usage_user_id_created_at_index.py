@@ -36,7 +36,7 @@ def upgrade() -> None:
 
     # Prefer dialect-native IF NOT EXISTS where available so introspection failures
     # can't cause hard migration failures on repeated deploys.
-    if dialect in {"postgresql", "sqlite"}:
+    if dialect in {"postgresql", "sqlite", "mysql"}:
         op.execute(
             sa.text(
                 f"CREATE INDEX IF NOT EXISTS {_INDEX_NAME} "
@@ -62,7 +62,7 @@ def downgrade() -> None:
     bind = op.get_bind()
     dialect = getattr(getattr(bind, "dialect", None), "name", "") if bind is not None else ""
 
-    if dialect in {"postgresql", "sqlite"}:
+    if dialect in {"postgresql", "sqlite", "mysql"}:
         op.execute(sa.text(f"DROP INDEX IF EXISTS {_INDEX_NAME}"))
         return
 
