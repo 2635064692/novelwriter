@@ -202,7 +202,7 @@ class TestHostedSSRFRejection:
             yield stream_chunk
 
         json_response = MagicMock(
-            choices=[MagicMock(message=MagicMock(content='{"ok": true}'))]
+            choices=[MagicMock(message=MagicMock(content='```json\n{"ok": true}\n```'))]
         )
         mock_client.chat.completions.create = AsyncMock(
             side_effect=[response, fake_stream(), json_response]
