@@ -1,3 +1,9 @@
+/**
+ * @deprecated Since v0.36 — LLM configuration is now persisted in the database
+ * via LlmProvider / LlmProviderModel. This in-memory store is retained only
+ * for the AuthContext logout clear path and backward-compatible header testing.
+ * All production config resolution now goes through the DB-backed API.
+ */
 export interface LlmConfig {
   baseUrl: string
   apiKey: string

@@ -18,6 +18,7 @@ import { NovelCopilotQuickActions } from './NovelCopilotQuickActions'
 import { NovelCopilotResearchProcess } from './NovelCopilotResearchProcess'
 import { NovelCopilotSuggestionCard } from './NovelCopilotSuggestionCard'
 import { AiStatusPill } from './AiStatusPill'
+import { ModelSelectorPill, getLastModelId } from './ModelSelectorPill'
 import { NovelCopilotSessionStrip } from './NovelCopilotSessionStrip'
 import { CopilotAnswerContent } from './CopilotAnswerContent'
 import { CopilotScrollNav } from './CopilotScrollNav'
@@ -141,6 +142,8 @@ function ActiveNovelCopilotDrawer({
   const [isDragging, setIsDragging] = useState(false)
   const [retryingRunId, setRetryingRunId] = useState<string | null>(null)
   const [isExpanded, setIsExpanded] = useState(false)
+  const [selectedModelId, setSelectedModelId] = useState<number | null>(getLastModelId)
+  const { updateSessionModelId } = useNovelCopilot()
   const setFallbackDrawerWidthClamped = useCallback((nextWidth: number) => {
     setFallbackDrawerWidth(clampNovelShellDrawerWidth(nextWidth))
   }, [])
@@ -278,6 +281,10 @@ function ActiveNovelCopilotDrawer({
                     <h2 className="text-sm font-medium tracking-[0.01em] text-foreground/90">Novel Copilot</h2>
                     <div className="mt-1 flex flex-wrap items-center gap-1.5">
                       <AiStatusPill status={focusedStatus} />
+                      <ModelSelectorPill selectedModelId={selectedModelId} onSelect={(modelId, _name) => {
+                        setSelectedModelId(modelId)
+                        updateSessionModelId(focusedSessionId, modelId)
+                      }} />
                       <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.16em] text-muted-foreground/80', copilotPillClassName)}>
                         {scopeLabel}
                       </span>

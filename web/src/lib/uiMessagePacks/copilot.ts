@@ -209,6 +209,10 @@ export const copilotZhMessages = {
   'copilot.errors.sessionConflict': '当前会话状态暂时不允许发起新的研究，请稍后再试。',
   'copilot.errors.runCreateFailed': '暂时无法发起这一轮研究，请稍后重试。',
   'copilot.errors.connecting': '正在连接...',
+
+  // Model selector
+  'copilot.model.default': '默认模型',
+  'copilot.model.noProviders': '请先在设置中配置模型提供商',
 } as const satisfies Record<string, UiMessageValue>
 
 export const copilotEnMessages = {
@@ -420,6 +424,10 @@ export const copilotEnMessages = {
   'copilot.errors.sessionConflict': 'The current session state does not allow a new research run right now. Please try again later.',
   'copilot.errors.runCreateFailed': 'Unable to start this research run right now. Please try again later.',
   'copilot.errors.connecting': 'Connecting...',
+
+  // Model selector
+  'copilot.model.default': 'Default model',
+  'copilot.model.noProviders': 'Please configure a model provider in Settings first',
 } as const satisfies Record<string, UiMessageValue>
 
 registerUiMessages({ zh: copilotZhMessages, en: copilotEnMessages })

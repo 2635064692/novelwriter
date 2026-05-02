@@ -3,7 +3,7 @@
 
 import { AppearanceCard } from "@/components/settings/AppearanceCard"
 import { AccountCard } from "@/components/settings/AccountCard"
-import { LlmConfigCard } from "@/components/settings/LlmConfigCard"
+import { LlmProviderManager } from "@/components/settings/LlmProviderManager"
 import { useAuth } from "@/contexts/AuthContext"
 import { useUiLocale } from "@/contexts/UiLocaleContext"
 
@@ -31,7 +31,7 @@ export default function Settings() {
                     <span className="text-xs font-semibold tracking-wider text-muted-foreground">
                         {t('settings.section.ai')}
                     </span>
-                    <LlmConfigCard />
+                    <LlmProviderManager />
                 </section>
 
                 {/* Account Section — only when logged in */}

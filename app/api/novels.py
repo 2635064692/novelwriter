@@ -40,7 +40,7 @@ from app.schemas import (
     WindowIndexStateResponse,
 )
 from app.core.parser import parse_novel_file, read_novel_file_text
-from app.core.llm_request import get_llm_config
+from app.api.deps import get_llm_config_dep
 from app.core.context_assembly import apply_writer_context_budget, assemble_writer_context
 from app.core.continuation_postcheck import postcheck_continuation
 from app.core.prose_check import prose_check_continuation
@@ -877,7 +877,7 @@ async def continue_novel_endpoint(
     req: ContinueRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user_or_default),
-    llm_config: dict | None = Depends(get_llm_config),
+    llm_config: dict | None = Depends(get_llm_config_dep),
     _quota_user: User = Depends(check_generation_quota),
 ):
     """Continue a novel using WorldModel visibility-driven context injection."""
@@ -941,7 +941,7 @@ async def continue_novel_stream_endpoint(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user_or_default),
-    llm_config: dict | None = Depends(get_llm_config),
+    llm_config: dict | None = Depends(get_llm_config_dep),
     _quota_user: User = Depends(check_generation_quota),
 ):
     """Stream continuation generation via NDJSON."""

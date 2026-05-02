@@ -8,7 +8,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from typing import Callable, List, Literal, Optional, TypeVar
 
-from app.api.deps import verify_novel_access
+from app.api.deps import get_llm_config_dep, verify_novel_access
 from app.config import get_settings
 from app.core.bootstrap import (
     resolve_bootstrap_mode,
@@ -17,7 +17,6 @@ from app.core.auth import (
     get_current_user_or_default,
     check_generation_quota,
 )
-from app.core.llm_request import get_llm_config
 from app.core.world.application import (
     batch_confirm_entities as confirm_entity_drafts,
     batch_confirm_relationships as confirm_relationship_drafts,
@@ -672,7 +671,7 @@ async def generate_world_from_text(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user_or_default),
-    llm_config: dict | None = Depends(get_llm_config),
+    llm_config: dict | None = Depends(get_llm_config_dep),
     _quota_user: User = Depends(check_generation_quota),
 ):
     return await _run_world_operation_async(
@@ -694,7 +693,7 @@ async def generate_world_from_text(
 @router.post("/bootstrap", response_model=BootstrapJobResponse, status_code=202)
 async def trigger_bootstrap(
     novel_id: int,
-    llm_config: dict | None = Depends(get_llm_config),
+    llm_config: dict | None = Depends(get_llm_config_dep),
     body: BootstrapTriggerRequest | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user_or_default),

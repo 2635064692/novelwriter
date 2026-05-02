@@ -3,11 +3,16 @@
 
 """Shared FastAPI dependencies for API routers."""
 
-from fastapi import Depends, HTTPException
+from __future__ import annotations
+
+from typing import Any
+
+from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.core.auth import get_current_user_or_default
+from app.core.llm_request import get_llm_config_with_db
 from app.database import get_db
 from app.models import Novel, User
 
@@ -31,3 +36,16 @@ def verify_novel_access(
         # Must not leak existence across users.
         raise HTTPException(status_code=404, detail=f"Novel {novel_id} not found")
     return novel
+
+
+def get_llm_config_dep(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_or_default),
+) -> dict[str, Any] | None:
+    """FastAPI dependency that resolves LLM config with DB fallback.
+
+    Usage: llm_config: dict | None = Depends(get_llm_config_dep)
+    """
+    uid = getattr(user, "id", None) if user is not None else None
+    return get_llm_config_with_db(request, db=db, user_id=uid)

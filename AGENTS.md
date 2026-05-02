@@ -63,12 +63,20 @@ docker compose down
 
 ### 后端（Docker）
 
-后端测试、lint 等在 Docker 容器内执行：
+后端 Python 代码验收**必须在 Docker 容器内**通过 `scripts/` 内的脚本执行，不得在本机直接运行。
 
 ```bash
+# Lint 检查
 docker exec -i novelwriter-scngs-1 bash -lc 'cd /app && scripts/uv_run.sh ruff check app tests scripts'
-docker exec -i novelwriter-scngs-1 bash -lc 'cd /app && scripts/uv_run.sh pytest tests/'
+
+# 单元测试
+docker exec -i novelwriter-scngs-1 bash -lc 'cd /app && scripts/uv_run.sh pytest tests/ -m "not contract"'
+
+# 类型检查
+docker exec -i novelwriter-scngs-1 bash -lc 'cd /app && scripts/uv_run.sh pyright app/'
 ```
+
+验收失败时，必须根据错误输出修复代码后重新执行，直至全部通过。
 
 ### 前端（React/Vite）
 
@@ -81,7 +89,7 @@ npm run build
 
 ## 代码约定与注意事项
 
-- 后端所有常规命令通过 `scripts/uv_run.sh` 调用，避免绕过项目固定的 uv 环境。
+- 后端所有常规命令通过 `docker exec 中 scripts/uv_run.sh` 调用，避免绕过项目固定的 uv 环境。
 - Ruff 配置位于 `ruff.toml`。
 - Pytest 默认排除 `contract` 标记测试（见 `pyproject.toml` 的 `addopts`）。
 - `e2e_llm` 标记测试会访问真实 LLM Provider，除非用户明确要求并提供环境配置，否则不要默认执行。

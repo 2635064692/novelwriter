@@ -19,6 +19,7 @@ export interface NovelCopilotSessionsOnlyState {
   closeDrawer: () => void
   reopenDrawer: () => void
   resolveBackendSessionId: (sessionId: string) => Promise<string>
+  updateSessionModelId: (sessionId: string, modelId: number | null) => void
 }
 
 function buildLocalSessionId() {
@@ -38,6 +39,7 @@ function buildOpenSessionRequest(session: NovelCopilotSession) {
     interaction_locale: session.interactionLocale,
     display_title: session.displayTitle,
     force_new: session.forceNew ?? false,
+    model_id: session.selectedModelId ?? undefined,
   }
 }
 
@@ -87,6 +89,21 @@ export function useNovelCopilotSessionsState({
       }
       changed = true
       return { ...session, backendSessionId }
+    })
+
+    if (changed) commitSessions(nextSessions)
+  }, [commitSessions])
+
+  const updateSessionModelId = useCallback((sessionId: string, modelId: number | null) => {
+    const currentSessions = sessionsRef.current
+    let changed = false
+
+    const nextSessions = currentSessions.map((session) => {
+      if (session.sessionId !== sessionId || session.selectedModelId === modelId) {
+        return session
+      }
+      changed = true
+      return { ...session, selectedModelId: modelId }
     })
 
     if (changed) commitSessions(nextSessions)
@@ -248,5 +265,6 @@ export function useNovelCopilotSessionsState({
     closeDrawer,
     reopenDrawer,
     resolveBackendSessionId,
+    updateSessionModelId,
   }
 }

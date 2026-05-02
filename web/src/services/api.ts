@@ -41,7 +41,6 @@ import {
   createApiError,
   fetchJson,
   isNonRetriable503Code,
-  llmHeaders,
   parseErrorDetail,
   parseRetryAfterSeconds,
   request,
@@ -149,7 +148,6 @@ export const api = {
   continueNovel: (novelId: number, data: ContinueRequest) =>
     request<ContinueResponse>(`/api/novels/${novelId}/continue`, {
       method: 'POST',
-      headers: llmHeaders(),
       body: JSON.stringify(data),
     }),
 
@@ -163,14 +161,13 @@ export const api = {
   testLlmConnection: () =>
     request<{ ok: boolean; model?: string; latency_ms?: number; error?: string; message?: string; capabilities?: { basic: boolean; stream: boolean; json_mode: boolean } }>('/api/llm/test', {
       method: 'POST',
-      headers: llmHeaders(),
     }),
 }
 
 async function* streamNdjson<T>(
   path: string,
   body: unknown,
-  opts?: { signal?: AbortSignal; useLlmHeaders?: boolean },
+  opts?: { signal?: AbortSignal },
 ): AsyncGenerator<T> {
   const maxRetries = 2
   let resp: Response | null = null
@@ -180,7 +177,6 @@ async function* streamNdjson<T>(
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
-        ...(opts?.useLlmHeaders ? llmHeaders() : {}),
       },
       body: JSON.stringify(body),
       signal: opts?.signal,
@@ -233,7 +229,6 @@ export async function* streamContinuation(
 ): AsyncGenerator<StreamEvent> {
   yield* streamNdjson<StreamEvent>(`/api/novels/${novelId}/continue/stream`, data, {
     signal: opts?.signal,
-    useLlmHeaders: true,
   })
 }
 
@@ -244,18 +239,16 @@ export async function* streamOutlineGeneration(
 ): AsyncGenerator<OutlineStreamEvent> {
   yield* streamNdjson<OutlineStreamEvent>(`/api/novels/${novelId}/outline/generate/stream`, data, {
     signal: opts?.signal,
-    useLlmHeaders: true,
   })
 }
 
-export { ApiError, copilotApi, llmHeaders }
+export { ApiError, copilotApi }
 
 export const worldApi = {
   // World generation
   generateWorld: (novelId: number, data: WorldGenerateRequest) =>
     request<WorldGenerateResponse>(`/api/novels/${novelId}/world/generate`, {
       method: 'POST',
-      headers: llmHeaders(),
       body: JSON.stringify(data),
     }),
 
@@ -376,7 +369,6 @@ export const worldApi = {
   triggerBootstrap: (novelId: number, data: BootstrapTriggerRequest) =>
     request<BootstrapJobResponse>(`/api/novels/${novelId}/world/bootstrap`, {
       method: 'POST',
-      headers: llmHeaders(),
       body: JSON.stringify(data),
     }),
   getBootstrapStatus: (novelId: number) =>

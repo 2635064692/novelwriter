@@ -93,6 +93,7 @@ export interface NovelCopilotSession {
   interactionLocale: string
   backendSessionId: string | null
   forceNew?: boolean
+  selectedModelId?: number | null
 }
 
 export interface OpenNovelCopilotOptions {

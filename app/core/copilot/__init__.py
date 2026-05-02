@@ -518,6 +518,7 @@ def open_or_reuse_session(
     interaction_locale: str,
     display_title: str,
     force_new: bool = False,
+    model_id: int | None = None,
 ) -> tuple[CopilotSession, bool]:
     """Return (session, created).  Reuses existing unexpired session if signature matches."""
     context = canonicalize_session_context(context)
@@ -538,6 +539,8 @@ def open_or_reuse_session(
             existing.interaction_locale = normalized_interaction_locale
             if display_title:
                 existing.display_title = display_title
+            if model_id is not None:
+                existing.model_id = model_id
             db.commit()
             db.refresh(existing)
             return existing, False
@@ -554,6 +557,7 @@ def open_or_reuse_session(
         interaction_locale=normalized_interaction_locale,
         signature=final_sig,
         display_title=display_title or "",
+        model_id=model_id,
     )
     db.add(session)
     try:

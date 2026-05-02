@@ -17,7 +17,7 @@ import type {
   CopilotTargetTab,
   CopilotTraceStep,
 } from '@/types/copilot'
-import { llmHeaders, request, requestParsed } from './apiClient'
+import { request, requestParsed } from './apiClient'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -307,6 +307,7 @@ export interface CopilotSessionOpenRequest {
   interaction_locale?: string
   display_title?: string
   force_new?: boolean
+  model_id?: number | null
 }
 
 export interface CopilotSessionResponse {
@@ -317,6 +318,7 @@ export interface CopilotSessionResponse {
   context: CopilotContextData | null
   interaction_locale: string
   display_title: string
+  model_id?: number | null
   created: boolean
   created_at: string
 }
@@ -343,7 +345,6 @@ export const copilotApi = {
   createRun: (novelId: number, sessionId: string, data: CopilotRunCreateRequest) =>
     requestParsed(`/api/novels/${novelId}/world/copilot/sessions/${sessionId}/runs`, parseCopilotRunResponse, {
       method: 'POST',
-      headers: llmHeaders(),
       body: JSON.stringify(data),
     }),
 
