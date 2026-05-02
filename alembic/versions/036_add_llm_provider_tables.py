@@ -26,7 +26,7 @@ def upgrade() -> None:
             sa.Column("preset_slug", sa.String(50), nullable=True),
             sa.Column("base_url", sa.String(500), nullable=False),
             sa.Column("api_key", sa.String(500), nullable=False),
-            sa.Column("is_default", sa.Boolean(), nullable=False, server_default=sa.text("0")),
+            sa.Column("is_default", sa.Boolean(), nullable=False, server_default=sa.false()),
             sa.Column("created_at", sa.DateTime(), server_default=sa.func.now()),
             sa.Column("updated_at", sa.DateTime(), server_default=sa.func.now()),
         )
@@ -44,7 +44,7 @@ def upgrade() -> None:
             ),
             sa.Column("model_name", sa.String(200), nullable=False),
             sa.Column("display_name", sa.String(200), nullable=True),
-            sa.Column("is_default", sa.Boolean(), nullable=False, server_default=sa.text("0")),
+            sa.Column("is_default", sa.Boolean(), nullable=False, server_default=sa.false()),
             sa.Column("created_at", sa.DateTime(), server_default=sa.func.now()),
             sa.UniqueConstraint("provider_id", "model_name", name="uq_llm_provider_models_provider_name"),
         )
@@ -52,11 +52,11 @@ def upgrade() -> None:
 
     copilot_cols = {col["name"] for col in inspector.get_columns("copilot_sessions")} if "copilot_sessions" in tables else set()
     if "model_id" not in copilot_cols:
-        op.add_column(
-            "copilot_sessions",
-            sa.Column("model_id", sa.Integer(), sa.ForeignKey("llm_provider_models.id"), nullable=True),
-        )
-        op.create_index("ix_copilot_sessions_model_id", "copilot_sessions", ["model_id"])
+        with op.batch_alter_table("copilot_sessions") as batch_op:
+            batch_op.add_column(
+                sa.Column("model_id", sa.Integer(), sa.ForeignKey("llm_provider_models.id"), nullable=True),
+            )
+            batch_op.create_index("ix_copilot_sessions_model_id", ["model_id"])
 
 
 def downgrade() -> None:

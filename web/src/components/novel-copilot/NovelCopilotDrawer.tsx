@@ -178,6 +178,14 @@ function ActiveNovelCopilotDrawer({
     return () => window.removeEventListener('keydown', handleEsc)
   }, [closeDrawer, isExpanded])
 
+  // Sync persisted model selection (localStorage) into the session object so
+  // resolveBackendSessionId → openSession sends the correct model_id.
+  useEffect(() => {
+    if (selectedModelId != null) {
+      updateSessionModelId(focusedSessionId, selectedModelId)
+    }
+  }, [focusedSessionId, selectedModelId, updateSessionModelId])
+
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     if (isExpanded) return
     e.preventDefault()
