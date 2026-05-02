@@ -96,6 +96,7 @@ export interface NovelCopilotSession {
 
 export interface OpenNovelCopilotOptions {
   displayTitle?: string
+  forceNew?: boolean
 }
 
 export type CopilotRunStatus = 'idle' | 'queued' | 'running' | 'completed' | 'error' | 'interrupted'

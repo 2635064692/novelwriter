@@ -59,6 +59,7 @@ export function NovelCopilotDrawer({
     cancelRun,
     applySuggestions,
     dismissSuggestions,
+    openDrawer,
   } = useNovelCopilot()
   const shell = useOptionalNovelShell()
   const focusedSessionMeta =
@@ -91,6 +92,7 @@ export function NovelCopilotDrawer({
       cancelRun={cancelRun}
       applySuggestions={applySuggestions}
       dismissSuggestions={dismissSuggestions}
+      openDrawer={openDrawer}
     />
   )
 }
@@ -113,6 +115,7 @@ function ActiveNovelCopilotDrawer({
   cancelRun,
   applySuggestions,
   dismissSuggestions,
+  openDrawer,
 }: {
   onLocateTarget?: (target: CopilotSuggestionTarget) => void
   shell: ReturnType<typeof useOptionalNovelShell>
@@ -131,6 +134,7 @@ function ActiveNovelCopilotDrawer({
   cancelRun: ReturnType<typeof useNovelCopilot>['cancelRun']
   applySuggestions: ReturnType<typeof useNovelCopilot>['applySuggestions']
   dismissSuggestions: ReturnType<typeof useNovelCopilot>['dismissSuggestions']
+  openDrawer: ReturnType<typeof useNovelCopilot>['openDrawer']
 }) {
   const { locale, t } = useUiLocale()
   const [fallbackDrawerWidth, setFallbackDrawerWidth] = useState(DEFAULT_NOVEL_SHELL_DRAWER_WIDTH)
@@ -316,6 +320,7 @@ function ActiveNovelCopilotDrawer({
             getSessionStatus={(sessionId) => getSessionRun(sessionId)?.status ?? null}
             onFocusSession={focusSession}
             onRemoveSession={removeSession}
+            onNewSession={() => openDrawer(session.prefill, { forceNew: true })}
           />
 
           <div className="relative min-h-0 flex-1">
