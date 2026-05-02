@@ -1,11 +1,11 @@
 import type React from 'react'
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { Bot, Expand, Minimize2, RotateCcw, X } from 'lucide-react'
+import { Bot, Clock3, Expand, Minimize2, RotateCcw, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useUiLocale } from '@/contexts/UiLocaleContext'
 import { getCopilotScopeLabel } from './novelCopilotHelpers'
 import { useNovelCopilot } from './NovelCopilotContext'
-import type { CopilotSuggestionTarget } from '@/types/copilot'
+import type { CopilotSessionListItem, CopilotSuggestionTarget } from '@/types/copilot'
 import {
   useOptionalNovelShell,
 } from '@/components/novel-shell/NovelShellContext'
@@ -18,7 +18,9 @@ import { NovelCopilotQuickActions } from './NovelCopilotQuickActions'
 import { NovelCopilotResearchProcess } from './NovelCopilotResearchProcess'
 import { NovelCopilotSuggestionCard } from './NovelCopilotSuggestionCard'
 import { AiStatusPill } from './AiStatusPill'
+import { ModelSelectorPill, getLastModelId } from './ModelSelectorPill'
 import { NovelCopilotSessionStrip } from './NovelCopilotSessionStrip'
+import { CopilotSessionHistory } from './CopilotSessionHistory'
 import { CopilotAnswerContent } from './CopilotAnswerContent'
 import { CopilotScrollNav } from './CopilotScrollNav'
 import { getCopilotWorkbenchMeta } from './novelCopilotWorkbench'
@@ -60,6 +62,7 @@ export function NovelCopilotDrawer({
     applySuggestions,
     dismissSuggestions,
     openDrawer,
+    restoreSession,
   } = useNovelCopilot()
   const shell = useOptionalNovelShell()
   const focusedSessionMeta =
@@ -93,6 +96,8 @@ export function NovelCopilotDrawer({
       applySuggestions={applySuggestions}
       dismissSuggestions={dismissSuggestions}
       openDrawer={openDrawer}
+      restoreSession={restoreSession}
+      novelId={focusedSessionMeta.novelId}
     />
   )
 }
@@ -116,6 +121,8 @@ function ActiveNovelCopilotDrawer({
   applySuggestions,
   dismissSuggestions,
   openDrawer,
+  restoreSession,
+  novelId,
 }: {
   onLocateTarget?: (target: CopilotSuggestionTarget) => void
   shell: ReturnType<typeof useOptionalNovelShell>
@@ -135,12 +142,17 @@ function ActiveNovelCopilotDrawer({
   applySuggestions: ReturnType<typeof useNovelCopilot>['applySuggestions']
   dismissSuggestions: ReturnType<typeof useNovelCopilot>['dismissSuggestions']
   openDrawer: ReturnType<typeof useNovelCopilot>['openDrawer']
+  restoreSession: ReturnType<typeof useNovelCopilot>['restoreSession']
+  novelId: number
 }) {
   const { locale, t } = useUiLocale()
   const [fallbackDrawerWidth, setFallbackDrawerWidth] = useState(DEFAULT_NOVEL_SHELL_DRAWER_WIDTH)
   const [isDragging, setIsDragging] = useState(false)
   const [retryingRunId, setRetryingRunId] = useState<string | null>(null)
   const [isExpanded, setIsExpanded] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
+  const [selectedModelId, setSelectedModelId] = useState<number | null>(getLastModelId)
+  const { updateSessionModelId } = useNovelCopilot()
   const setFallbackDrawerWidthClamped = useCallback((nextWidth: number) => {
     setFallbackDrawerWidth(clampNovelShellDrawerWidth(nextWidth))
   }, [])
@@ -278,12 +290,22 @@ function ActiveNovelCopilotDrawer({
                     <h2 className="text-sm font-medium tracking-[0.01em] text-foreground/90">Novel Copilot</h2>
                     <div className="mt-1 flex flex-wrap items-center gap-1.5">
                       <AiStatusPill status={focusedStatus} />
+                      <ModelSelectorPill selectedModelId={selectedModelId} onSelect={(modelId, _name) => {
+                        setSelectedModelId(modelId)
+                        updateSessionModelId(focusedSessionId, modelId)
+                      }} />
                       <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.16em] text-muted-foreground/80', copilotPillClassName)}>
                         {scopeLabel}
                       </span>
-                      <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[10px] text-muted-foreground/75', copilotPillClassName)}>
+                      <button
+                        type="button"
+                        onClick={() => setShowHistory(true)}
+                        className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] text-muted-foreground/75 cursor-pointer', copilotPillInteractiveClassName)}
+                        aria-label={t('copilot.history.title')}
+                      >
+                        <Clock3 className="h-3 w-3" />
                         {t('copilot.drawer.sessionsCount', { count: sessions.length })}
-                      </span>
+                      </button>
                     </div>
                     <div className="mt-1.5 truncate text-[11px] text-muted-foreground/70">
                       {t('copilot.drawer.currentWorkspace', { title: session.displayTitle })}
@@ -314,6 +336,19 @@ function ActiveNovelCopilotDrawer({
             </div>
           </div>
 
+          {showHistory ? (
+            <div className="relative min-h-0 flex-1">
+              <CopilotSessionHistory
+                novelId={novelId}
+                onRestore={(item: CopilotSessionListItem) => {
+                  restoreSession(item)
+                  setShowHistory(false)
+                }}
+                onBack={() => setShowHistory(false)}
+              />
+            </div>
+          ) : (
+          <>
           <NovelCopilotSessionStrip
             sessions={sessions}
             focusedSessionId={focusedSessionId}
@@ -494,7 +529,10 @@ function ActiveNovelCopilotDrawer({
 
             <CopilotScrollNav containerRef={scrollContainerRef} />
           </div>
+          </>
+          )}
 
+          {!showHistory && (
           <div className="shrink-0 border-t border-[var(--nw-copilot-border)] bg-[linear-gradient(180deg,hsl(var(--foreground)/0.03),transparent)] p-4">
             <NovelCopilotComposer
               onSubmit={handleSubmit}
@@ -505,6 +543,7 @@ function ActiveNovelCopilotDrawer({
               placeholder={workbenchMeta.composerPlaceholder}
             />
           </div>
+          )}
         </div>
     </>
   )

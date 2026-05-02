@@ -209,6 +209,27 @@ export const copilotZhMessages = {
   'copilot.errors.sessionConflict': '当前会话状态暂时不允许发起新的研究，请稍后再试。',
   'copilot.errors.runCreateFailed': '暂时无法发起这一轮研究，请稍后重试。',
   'copilot.errors.connecting': '正在连接...',
+
+  // Model selector
+  'copilot.model.default': '默认模型',
+  'copilot.model.noProviders': '请先在设置中配置模型提供商',
+  'copilot.history.title': '历史会话',
+  'copilot.history.empty': '暂无历史会话',
+  'copilot.history.emptyHint': '开始一次 Copilot 研究，它会自动出现在这里。',
+  'copilot.history.loadMore': '加载更多',
+  'copilot.history.loading': '加载中...',
+  'copilot.history.runs': ({ count }) => `${String(count ?? 0)} 轮`,
+  'copilot.history.restore': '恢复会话',
+  'copilot.history.filter.all': '全部',
+  'copilot.history.filter.research': '研究',
+  'copilot.history.filter.currentEntity': '实体',
+  'copilot.history.filter.draftCleanup': '草稿',
+  'copilot.history.mode.research': '研究',
+  'copilot.history.mode.current_entity': '实体',
+  'copilot.history.mode.draft_cleanup': '草稿',
+  'copilot.history.scope.whole_book': '全书',
+  'copilot.history.scope.current_entity': '实体',
+  'copilot.history.scope.current_tab': '标签页',
 } as const satisfies Record<string, UiMessageValue>
 
 export const copilotEnMessages = {
@@ -420,6 +441,27 @@ export const copilotEnMessages = {
   'copilot.errors.sessionConflict': 'The current session state does not allow a new research run right now. Please try again later.',
   'copilot.errors.runCreateFailed': 'Unable to start this research run right now. Please try again later.',
   'copilot.errors.connecting': 'Connecting...',
+
+  // Model selector
+  'copilot.model.default': 'Default model',
+  'copilot.model.noProviders': 'Please configure a model provider in Settings first',
+  'copilot.history.title': 'Session history',
+  'copilot.history.empty': 'No session history',
+  'copilot.history.emptyHint': 'Start a Copilot research session and it will appear here automatically.',
+  'copilot.history.loadMore': 'Load more',
+  'copilot.history.loading': 'Loading...',
+  'copilot.history.runs': ({ count }) => `${String(count ?? 0)} runs`,
+  'copilot.history.restore': 'Restore session',
+  'copilot.history.filter.all': 'All',
+  'copilot.history.filter.research': 'Research',
+  'copilot.history.filter.currentEntity': 'Entity',
+  'copilot.history.filter.draftCleanup': 'Draft',
+  'copilot.history.mode.research': 'Research',
+  'copilot.history.mode.current_entity': 'Entity',
+  'copilot.history.mode.draft_cleanup': 'Draft',
+  'copilot.history.scope.whole_book': 'Whole book',
+  'copilot.history.scope.current_entity': 'Entity',
+  'copilot.history.scope.current_tab': 'Tab',
 } as const satisfies Record<string, UiMessageValue>
 
 registerUiMessages({ zh: copilotZhMessages, en: copilotEnMessages })

@@ -456,6 +456,7 @@ class CopilotSession(Base):
     interaction_locale = Column(String(10), nullable=False, default="zh")
     signature = Column(String(255), nullable=False)
     display_title = Column(String(255), nullable=False, default="")
+    model_id = Column(Integer, ForeignKey("llm_provider_models.id"), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     last_active_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -548,3 +549,43 @@ class PromptVersion(Base):
     created_at = Column(DateTime, server_default=func.now())
 
     prompt_template = relationship("PromptTemplate", back_populates="versions")
+
+
+class LlmProvider(Base):
+    """User-configured LLM provider (e.g. OpenAI, DeepSeek)."""
+
+    __tablename__ = "llm_providers"
+    __table_args__ = (
+        Index("ix_llm_providers_user_id", "user_id"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    name = Column(String(100), nullable=False)
+    preset_slug = Column(String(50), nullable=True)
+    base_url = Column(String(500), nullable=False)
+    api_key = Column(String(500), nullable=False)
+    is_default = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    models = relationship("LlmProviderModel", back_populates="provider", cascade="all, delete-orphan")
+
+
+class LlmProviderModel(Base):
+    """A model available under a provider."""
+
+    __tablename__ = "llm_provider_models"
+    __table_args__ = (
+        UniqueConstraint("provider_id", "model_name", name="uq_llm_provider_models_provider_name"),
+        Index("ix_llm_provider_models_provider_id", "provider_id"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    provider_id = Column(Integer, ForeignKey("llm_providers.id", ondelete="CASCADE"), nullable=False)
+    model_name = Column(String(200), nullable=False)
+    display_name = Column(String(200), nullable=True)
+    is_default = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+    provider = relationship("LlmProvider", back_populates="models")

@@ -3,3 +3,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.local
+    volumes:
+      - scngs-data:${SCNGS_DATA_DIR:-/data}
+      - ./tests:/app/tests:ro
+      - ./app:/app/app:ro
+      - ./alembic:/app/alembic:ro
+      - ./scripts:/app/scripts:ro

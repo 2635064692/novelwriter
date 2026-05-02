@@ -93,6 +93,7 @@ export interface NovelCopilotSession {
   interactionLocale: string
   backendSessionId: string | null
   forceNew?: boolean
+  selectedModelId?: number | null
 }
 
 export interface OpenNovelCopilotOptions {
@@ -244,4 +245,25 @@ export function normalizeCopilotSessionContext(
   }
 
   return normalized
+}
+
+export interface CopilotSessionListItem {
+  session_id: string
+  mode: CopilotMode
+  scope: CopilotScope
+  context: CopilotContextData | null
+  interaction_locale: string
+  display_title: string
+  run_count: number
+  latest_run_status: string | null
+  last_active_at: string | null
+  created_at: string
+}
+
+export interface CopilotSessionListResponse {
+  items: CopilotSessionListItem[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
 }

@@ -100,3 +100,87 @@ def resolve_generation_billing_source(request: Request) -> str:
         raise HTTPException(status_code=400, detail=build_incomplete_llm_config_detail())
 
     return "byok"
+
+
+def resolve_default_llm_config(db: Any, user_id: int | None) -> dict[str, Any] | None:
+    """Read default provider+model config from DB. Returns None if no config."""
+    from app.models import LlmProvider, LlmProviderModel
+
+    settings = get_settings()
+    q = db.query(LlmProvider)
+    if settings.deploy_mode == "hosted" and user_id is not None:
+        q = q.filter_by(user_id=user_id)
+    provider = q.filter_by(is_default=True).first()
+    if provider is None:
+        providers = q.all()
+        provider = providers[0] if providers else None
+    if provider is None:
+        return None
+
+    model = db.query(LlmProviderModel).filter_by(provider_id=provider.id, is_default=True).first()
+    if model is None:
+        model = db.query(LlmProviderModel).filter_by(provider_id=provider.id).first()
+    if model is None:
+        return None
+
+    billing = "hosted" if settings.deploy_mode == "hosted" else "selfhost"
+    return {
+        "base_url": provider.base_url,
+        "api_key": provider.api_key,
+        "model": model.model_name,
+        "billing_source_hint": billing,
+    }
+
+
+def _env_fallback_config() -> dict[str, Any] | None:
+    settings = get_settings()
+    if settings.deploy_mode == "hosted" and settings.hosted_llm_base_url:
+        return {
+            "base_url": settings.hosted_llm_base_url,
+            "api_key": settings.hosted_llm_api_key,
+            "model": settings.hosted_llm_model,
+            "billing_source_hint": "hosted",
+        }
+    if settings.openai_api_key:
+        return {
+            "base_url": settings.openai_base_url,
+            "api_key": settings.openai_api_key,
+            "model": settings.openai_model,
+            "billing_source_hint": "selfhost",
+        }
+    return None
+
+
+def get_llm_config_with_db(
+    request: Request,
+    db: Any = None,
+    user_id: int | None = None,
+) -> dict[str, Any] | None:
+    """Enhanced config resolution: header -> DB default -> .env fallback."""
+    override = read_llm_override(request)
+
+    if override.has_any_value() and not override.is_complete():
+        raise HTTPException(status_code=400, detail=build_incomplete_llm_config_detail())
+
+    if override.is_complete():
+        settings = get_settings()
+        if settings.deploy_mode == "hosted" and override.base_url:
+            from app.core.url_validator import UnsafeURLError, validate_llm_url
+            try:
+                validate_llm_url(override.base_url)
+            except UnsafeURLError as exc:
+                raise HTTPException(status_code=400, detail=str(exc))
+        billing_source_hint = "byok" if settings.deploy_mode == "hosted" else "selfhost"
+        return {
+            "base_url": override.base_url,
+            "api_key": override.api_key,
+            "model": override.model,
+            "billing_source_hint": billing_source_hint,
+        }
+
+    if db is not None:
+        db_config = resolve_default_llm_config(db, user_id)
+        if db_config is not None:
+            return db_config
+
+    return _env_fallback_config()

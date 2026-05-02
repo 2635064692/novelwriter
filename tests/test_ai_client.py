@@ -500,6 +500,40 @@ async def test_generate_structured_parses_json_mode(MockOpenAI, mock_settings):
 @pytest.mark.asyncio
 @patch("app.core.ai_client.get_settings")
 @patch("app.core.ai_client.AsyncOpenAI")
+async def test_generate_structured_parses_markdown_fenced_json(MockOpenAI, mock_settings):
+    s = MagicMock(
+        openai_base_url="https://api.openai.com/v1",
+        openai_api_key="sk-test",
+        openai_model="gpt-4o",
+    )
+    mock_settings.return_value = s
+
+    mock_response = MagicMock()
+    mock_response.usage = None
+    mock_response.choices = [
+        MagicMock(
+            message=MagicMock(content='```json\n{"title": "Scene", "score": 9}\n```'),
+            finish_reason="stop",
+        )
+    ]
+    mock_client_instance = MagicMock()
+    mock_client_instance.chat.completions.create = AsyncMock(return_value=mock_response)
+    MockOpenAI.return_value = mock_client_instance
+
+    c = AIClient()
+    result = await c.generate_structured(
+        prompt="Return JSON",
+        response_model=DummyStructuredModel,
+        role="default",
+    )
+
+    assert result.title == "Scene"
+    assert result.score == 9
+
+
+@pytest.mark.asyncio
+@patch("app.core.ai_client.get_settings")
+@patch("app.core.ai_client.AsyncOpenAI")
 async def test_generate_structured_retries_then_succeeds(MockOpenAI, mock_settings):
     s = MagicMock(
         openai_base_url="https://api.openai.com/v1",

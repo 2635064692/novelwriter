@@ -10,10 +10,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from app.api.deps import verify_novel_access
+from app.api.deps import get_llm_config_dep, verify_novel_access
 from app.core.auth import QuotaScope, check_generation_quota, get_current_user_or_default
 from app.core.events import record_event
-from app.core.llm_request import get_llm_config
 from app.core.llm_semaphore import acquire_llm_slot, release_llm_slot
 from app.core.outline_gen import (
     approve_outline_system,
@@ -73,7 +72,7 @@ async def generate_outline_stream(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user_or_default),
-    llm_config: dict | None = Depends(get_llm_config),
+    llm_config: dict | None = Depends(get_llm_config_dep),
     _quota_user: User = Depends(check_generation_quota),
 ):
     current_user = _quota_user

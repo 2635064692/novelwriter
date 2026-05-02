@@ -31,14 +31,16 @@ from app.core.copilot import (
     execute_copilot_run,
     interrupt_run,
     list_session_runs,
+    list_sessions,
     load_latest_run,
     load_run,
     load_session,
     open_or_reuse_session,
 )
-from app.core.llm_request import get_llm_config
+from app.config import get_settings
+from app.core.llm_request import resolve_default_llm_config, _env_fallback_config
 from app.database import get_db
-from app.models import Novel, User
+from app.models import LlmProvider, LlmProviderModel, Novel, User
 from app.schemas import (
     CopilotApplyActionResponse,
     CopilotApplyRequest,
@@ -49,6 +51,8 @@ from app.schemas import (
     CopilotFieldDeltaResponse,
     CopilotRunCreateRequest,
     CopilotRunResponse,
+    CopilotSessionListResponse,
+    CopilotSessionListItem,
     CopilotSessionOpenRequest,
     CopilotSessionResponse,
     CopilotSuggestionPreviewResponse,
@@ -99,6 +103,7 @@ def session_open(
             interaction_locale=body.interaction_locale,
             display_title=body.display_title,
             force_new=body.force_new,
+            model_id=body.model_id,
         )
         return CopilotSessionResponse(
             session_id=session.session_id,
@@ -108,11 +113,43 @@ def session_open(
             context=session.context_json,
             interaction_locale=session.interaction_locale,
             display_title=session.display_title,
+            model_id=session.model_id,
             created=created,
             created_at=session.created_at,
         )
     except CopilotError as exc:
         _handle_copilot_error(exc)
+
+
+@router.get("/sessions", response_model=CopilotSessionListResponse)
+def session_list(
+    novel_id: int,
+    page: int = 1,
+    page_size: int = 15,
+    mode: str | None = None,
+    scope: str | None = None,
+    novel: Novel = Depends(verify_novel_access),
+    user: User = Depends(get_current_user_or_default),
+    db: Session = Depends(get_db),
+):
+    """List copilot sessions for the current novel with pagination."""
+    items, total = list_sessions(
+        db,
+        novel_id=novel_id,
+        user_id=user.id,
+        page=page,
+        page_size=page_size,
+        mode=mode,
+        scope=scope,
+    )
+    total_pages = max(1, -(-total // page_size))
+    return CopilotSessionListResponse(
+        items=[CopilotSessionListItem(**item) for item in items],
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -157,8 +194,29 @@ async def run_create(
         _handle_copilot_error(exc)
         return  # unreachable, silences type checker
 
-    # Resolve LLM config before spawning background task
-    llm_config = get_llm_config(request)
+    # Resolve LLM config from session-bound model or DB default
+    settings = get_settings()
+    llm_config: dict | None = None
+    if session.model_id:
+        model_rec = db.get(LlmProviderModel, session.model_id)
+        if model_rec is None:
+            raise HTTPException(status_code=400, detail={"code": "model_not_found", "message": "Session model not found."})
+        provider = db.get(LlmProvider, model_rec.provider_id)
+        if provider is None:
+            raise HTTPException(status_code=400, detail={"code": "provider_not_found", "message": "Model provider not found."})
+        if settings.deploy_mode == "hosted" and provider.user_id != user.id:
+            raise HTTPException(status_code=403, detail={"code": "model_not_owned", "message": "Session model does not belong to you."})
+        billing = "hosted" if settings.deploy_mode == "hosted" else "selfhost"
+        llm_config = {
+            "base_url": provider.base_url,
+            "api_key": provider.api_key,
+            "model": model_rec.model_name,
+            "billing_source_hint": billing,
+        }
+    if llm_config is None:
+        llm_config = resolve_default_llm_config(db, user.id)
+    if llm_config is None:
+        llm_config = _env_fallback_config()
 
     # Spawn background execution
     asyncio.create_task(

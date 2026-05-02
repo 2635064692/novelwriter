@@ -973,6 +973,7 @@ class CopilotSessionOpenRequest(BaseModel):
     interaction_locale: str = Field(default="zh", max_length=10)
     display_title: str = Field(default="", max_length=255)
     force_new: bool = False
+    model_id: Optional[int] = None
 
     @field_validator("interaction_locale", mode="before")
     @classmethod
@@ -1007,6 +1008,27 @@ class CopilotSessionOpenRequest(BaseModel):
         return self
 
 
+class CopilotSessionListItem(BaseModel):
+    session_id: str
+    mode: str
+    scope: str
+    context: Optional[CopilotContextData] = None
+    interaction_locale: str
+    display_title: str
+    run_count: int = 0
+    latest_run_status: Optional[str] = None
+    last_active_at: Optional[datetime] = None
+    created_at: datetime
+
+
+class CopilotSessionListResponse(BaseModel):
+    items: List[CopilotSessionListItem]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
 class CopilotSessionResponse(BaseModel):
     session_id: str
     signature: str
@@ -1015,6 +1037,7 @@ class CopilotSessionResponse(BaseModel):
     context: Optional[CopilotContextData] = None
     interaction_locale: str
     display_title: str
+    model_id: Optional[int] = None
     created: bool
     created_at: datetime
 
@@ -1162,3 +1185,59 @@ class PromptVersionResponse(BaseModel):
 class PromptRollbackRequest(BaseModel):
     version: int
     reason: Optional[str] = None
+
+
+# =============================================================================
+# LLM Provider Schemas
+# =============================================================================
+
+
+class LlmProviderModelCreate(BaseModel):
+    model_name: str = Field(min_length=1, max_length=200)
+    display_name: Optional[str] = Field(default=None, max_length=200)
+    is_default: bool = False
+
+
+class LlmProviderModelResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    model_name: str
+    display_name: Optional[str] = None
+    is_default: bool
+
+
+class LlmProviderCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    preset_slug: Optional[str] = Field(default=None, max_length=50)
+    base_url: str = Field(min_length=1, max_length=500)
+    api_key: str = Field(min_length=1, max_length=500)
+    models: List[LlmProviderModelCreate] = Field(min_length=1)
+    is_default: bool = False
+
+
+class LlmProviderUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, max_length=100)
+    base_url: Optional[str] = Field(default=None, max_length=500)
+    api_key: Optional[str] = Field(default=None, max_length=500)
+    is_default: Optional[bool] = None
+    models: Optional[List[LlmProviderModelCreate]] = None
+
+
+class LlmProviderResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    preset_slug: Optional[str] = None
+    base_url: str
+    api_key: str
+    api_key_set: bool = True
+    is_default: bool
+    models: List[LlmProviderModelResponse] = []
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+class LlmProviderTestRequest(BaseModel):
+    model_name: Optional[str] = None
