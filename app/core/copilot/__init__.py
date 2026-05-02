@@ -697,6 +697,8 @@ def list_sessions(
     if scope:
         query = query.filter(CopilotSession.scope == scope)
 
+    query = query.filter(func.coalesce(run_count_subq.c.run_count, 0) > 0)
+
     total = query.count()
 
     rows = (

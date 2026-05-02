@@ -263,16 +263,13 @@ def create_provider(
     db.add(provider)
     db.flush()
 
-    has_default = False
+    default_idx = next((i for i, m in enumerate(body.models) if m.is_default), 0)
     for i, m in enumerate(body.models):
-        is_d = m.is_default or (i == 0 and not has_default)
-        if is_d:
-            has_default = True
         db.add(LlmProviderModel(
             provider_id=provider.id,
             model_name=m.model_name,
             display_name=m.display_name,
-            is_default=is_d,
+            is_default=(i == default_idx),
         ))
 
     db.commit()
@@ -307,16 +304,13 @@ def update_provider(
     if body.models is not None:
         db.query(LlmProviderModel).filter_by(provider_id=provider.id).delete()
         db.flush()
-        has_default = False
+        default_idx = next((i for i, m in enumerate(body.models) if m.is_default), 0)
         for i, m in enumerate(body.models):
-            is_d = m.is_default or (i == 0 and not has_default)
-            if is_d:
-                has_default = True
             db.add(LlmProviderModel(
                 provider_id=provider.id,
                 model_name=m.model_name,
                 display_name=m.display_name,
-                is_default=is_d,
+                is_default=(i == default_idx),
             ))
 
     db.commit()
