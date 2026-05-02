@@ -363,4 +363,9 @@ export const copilotApi = {
       method: 'POST',
       body: JSON.stringify({ suggestion_ids: suggestionIds }),
     }),
+
+  interruptRun: (novelId: number, sessionId: string, runId: string) =>
+    requestParsed(`/api/novels/${novelId}/world/copilot/sessions/${sessionId}/runs/${runId}/interrupt`, parseCopilotRunResponse, {
+      method: 'POST',
+    }),
 }

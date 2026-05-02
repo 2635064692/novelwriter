@@ -1119,6 +1119,34 @@ def check_stale_run(run: CopilotRun) -> bool:
     return True
 
 
+def interrupt_run(
+    db: Session,
+    novel_id: int,
+    user_id: int,
+    session_id: str,
+    run_id: str,
+) -> CopilotRun:
+    """User-initiated interrupt of a queued or running run.
+
+    Idempotent: returns the run as-is if already in a terminal status.
+    Clears the lease so any active tool-loop worker exits on its next checkpoint.
+    Preserves workspace_json for potential resume.
+    """
+    run = load_run(db, novel_id, user_id, session_id, run_id)
+    if run.status not in ACTIVE_RUN_STATUSES:
+        return run
+
+    now = _utcnow_naive()
+    _interrupt_run(
+        run,
+        message=_copilot_run_interrupted_message(_resolve_run_interaction_locale(run)),
+        now=now,
+    )
+    _settle_run_quota(db, run)
+    db.commit()
+    return run
+
+
 # ---------------------------------------------------------------------------
 # LLM helpers
 # ---------------------------------------------------------------------------

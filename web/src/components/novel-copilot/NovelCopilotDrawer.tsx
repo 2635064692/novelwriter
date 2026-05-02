@@ -56,6 +56,7 @@ export function NovelCopilotDrawer({
     getSessionRuns,
     submitPrompt,
     retryInterruptedRun,
+    cancelRun,
     applySuggestions,
     dismissSuggestions,
   } = useNovelCopilot()
@@ -87,6 +88,7 @@ export function NovelCopilotDrawer({
       getSessionRuns={getSessionRuns}
       submitPrompt={submitPrompt}
       retryInterruptedRun={retryInterruptedRun}
+      cancelRun={cancelRun}
       applySuggestions={applySuggestions}
       dismissSuggestions={dismissSuggestions}
     />
@@ -108,6 +110,7 @@ function ActiveNovelCopilotDrawer({
   getSessionRuns,
   submitPrompt,
   retryInterruptedRun,
+  cancelRun,
   applySuggestions,
   dismissSuggestions,
 }: {
@@ -125,6 +128,7 @@ function ActiveNovelCopilotDrawer({
   getSessionRuns: ReturnType<typeof useNovelCopilot>['getSessionRuns']
   submitPrompt: ReturnType<typeof useNovelCopilot>['submitPrompt']
   retryInterruptedRun: ReturnType<typeof useNovelCopilot>['retryInterruptedRun']
+  cancelRun: ReturnType<typeof useNovelCopilot>['cancelRun']
   applySuggestions: ReturnType<typeof useNovelCopilot>['applySuggestions']
   dismissSuggestions: ReturnType<typeof useNovelCopilot>['dismissSuggestions']
 }) {
@@ -489,7 +493,9 @@ function ActiveNovelCopilotDrawer({
           <div className="shrink-0 border-t border-[var(--nw-copilot-border)] bg-[linear-gradient(180deg,hsl(var(--foreground)/0.03),transparent)] p-4">
             <NovelCopilotComposer
               onSubmit={handleSubmit}
+              onCancel={activeRun ? () => void cancelRun(session.sessionId, activeRun.run_id) : undefined}
               disabled={isFocusedSessionBusy}
+              isBusy={isFocusedSessionBusy && !!activeRun}
               label={workbenchMeta.composerLabel}
               placeholder={workbenchMeta.composerPlaceholder}
             />
