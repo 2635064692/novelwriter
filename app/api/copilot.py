@@ -29,6 +29,7 @@ from app.core.copilot import (
     create_run,
     dismiss_suggestions,
     execute_copilot_run,
+    interrupt_run,
     list_session_runs,
     load_latest_run,
     load_run,
@@ -97,6 +98,7 @@ def session_open(
             context=context,
             interaction_locale=body.interaction_locale,
             display_title=body.display_title,
+            force_new=body.force_new,
         )
         return CopilotSessionResponse(
             session_id=session.session_id,
@@ -190,6 +192,28 @@ def run_poll(
     # Stale run detection: mark long-running runs as interrupted
     if check_stale_run(run):
         db.commit()
+
+    return _run_to_response(run)
+
+
+@router.post("/sessions/{session_id}/runs/{run_id}/interrupt", response_model=CopilotRunResponse)
+def run_interrupt(
+    novel_id: int,
+    session_id: str,
+    run_id: str,
+    novel: Novel = Depends(verify_novel_access),
+    user: User = Depends(get_current_user_or_default),
+    db: Session = Depends(get_db),
+):
+    """Cancel a queued or running copilot run.
+
+    Idempotent: returns the run as-is if already in a terminal status.
+    """
+    try:
+        run = interrupt_run(db, novel_id, user.id, session_id, run_id)
+    except CopilotError as exc:
+        _handle_copilot_error(exc)
+        return
 
     return _run_to_response(run)
 

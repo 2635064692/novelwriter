@@ -84,6 +84,7 @@ export interface NovelCopilotRunControllerState {
     quickAction?: string,
   ) => Promise<boolean>
   retryInterruptedRun: (sessionId: string, runId: string) => Promise<boolean>
+  cancelRun: (sessionId: string, runId: string) => Promise<boolean>
   applySuggestions: (sessionId: string, runId: string, suggestionIds: string[]) => Promise<boolean>
   dismissSuggestions: (sessionId: string, runId: string, suggestionIds: string[]) => Promise<void>
 }
@@ -489,6 +490,32 @@ export function useNovelCopilotRuns({
     }
   }, [runsBySessionId, resolveBackendSessionId, setRunsBySessionId, startPolling, toast, getRunCreateFailureMessage])
 
+  const cancelRun = useCallback(async (sessionId: string, runId: string) => {
+    const session = sessionsByIdRef.current.get(sessionId)
+    if (!session) return false
+
+    try {
+      const backendSessionId = await resolveBackendSessionId(sessionId)
+      if (!sessionsByIdRef.current.has(sessionId)) return false
+
+      const resp = await copilotApi.interruptRun(session.novelId, backendSessionId, runId)
+      if (!sessionsByIdRef.current.has(sessionId)) return false
+
+      setRunsBySessionId((prev) => updateSessionRunById(prev, sessionId, runId, () => resp))
+
+      const timeoutId = timeoutIdsRef.current[sessionId]
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+        delete timeoutIdsRef.current[sessionId]
+      }
+      delete pollFailureCountsRef.current[sessionId]
+
+      return true
+    } catch {
+      return false
+    }
+  }, [resolveBackendSessionId, setRunsBySessionId])
+
   // -----------------------------------------------------------------------
   // Apply suggestions
   // -----------------------------------------------------------------------
@@ -568,6 +595,7 @@ export function useNovelCopilotRuns({
     getSessionRuns,
     submitPrompt,
     retryInterruptedRun,
+    cancelRun,
     applySuggestions,
     dismissSuggestions,
   }

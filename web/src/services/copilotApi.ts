@@ -306,6 +306,7 @@ export interface CopilotSessionOpenRequest {
   } | null
   interaction_locale?: string
   display_title?: string
+  force_new?: boolean
 }
 
 export interface CopilotSessionResponse {
@@ -362,5 +363,10 @@ export const copilotApi = {
     request<{ ok: boolean }>(`/api/novels/${novelId}/world/copilot/sessions/${sessionId}/runs/${runId}/dismiss`, {
       method: 'POST',
       body: JSON.stringify({ suggestion_ids: suggestionIds }),
+    }),
+
+  interruptRun: (novelId: number, sessionId: string, runId: string) =>
+    requestParsed(`/api/novels/${novelId}/world/copilot/sessions/${sessionId}/runs/${runId}/interrupt`, parseCopilotRunResponse, {
+      method: 'POST',
     }),
 }

@@ -1,6 +1,6 @@
 import type React from 'react'
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { Bot, RotateCcw, X } from 'lucide-react'
+import { Bot, Expand, Minimize2, RotateCcw, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useUiLocale } from '@/contexts/UiLocaleContext'
 import { getCopilotScopeLabel } from './novelCopilotHelpers'
@@ -19,6 +19,8 @@ import { NovelCopilotResearchProcess } from './NovelCopilotResearchProcess'
 import { NovelCopilotSuggestionCard } from './NovelCopilotSuggestionCard'
 import { AiStatusPill } from './AiStatusPill'
 import { NovelCopilotSessionStrip } from './NovelCopilotSessionStrip'
+import { CopilotAnswerContent } from './CopilotAnswerContent'
+import { CopilotScrollNav } from './CopilotScrollNav'
 import { getCopilotWorkbenchMeta } from './novelCopilotWorkbench'
 import {
   copilotDrawerShellClassName,
@@ -54,8 +56,10 @@ export function NovelCopilotDrawer({
     getSessionRuns,
     submitPrompt,
     retryInterruptedRun,
+    cancelRun,
     applySuggestions,
     dismissSuggestions,
+    openDrawer,
   } = useNovelCopilot()
   const shell = useOptionalNovelShell()
   const focusedSessionMeta =
@@ -85,8 +89,10 @@ export function NovelCopilotDrawer({
       getSessionRuns={getSessionRuns}
       submitPrompt={submitPrompt}
       retryInterruptedRun={retryInterruptedRun}
+      cancelRun={cancelRun}
       applySuggestions={applySuggestions}
       dismissSuggestions={dismissSuggestions}
+      openDrawer={openDrawer}
     />
   )
 }
@@ -106,8 +112,10 @@ function ActiveNovelCopilotDrawer({
   getSessionRuns,
   submitPrompt,
   retryInterruptedRun,
+  cancelRun,
   applySuggestions,
   dismissSuggestions,
+  openDrawer,
 }: {
   onLocateTarget?: (target: CopilotSuggestionTarget) => void
   shell: ReturnType<typeof useOptionalNovelShell>
@@ -123,13 +131,16 @@ function ActiveNovelCopilotDrawer({
   getSessionRuns: ReturnType<typeof useNovelCopilot>['getSessionRuns']
   submitPrompt: ReturnType<typeof useNovelCopilot>['submitPrompt']
   retryInterruptedRun: ReturnType<typeof useNovelCopilot>['retryInterruptedRun']
+  cancelRun: ReturnType<typeof useNovelCopilot>['cancelRun']
   applySuggestions: ReturnType<typeof useNovelCopilot>['applySuggestions']
   dismissSuggestions: ReturnType<typeof useNovelCopilot>['dismissSuggestions']
+  openDrawer: ReturnType<typeof useNovelCopilot>['openDrawer']
 }) {
   const { locale, t } = useUiLocale()
   const [fallbackDrawerWidth, setFallbackDrawerWidth] = useState(DEFAULT_NOVEL_SHELL_DRAWER_WIDTH)
   const [isDragging, setIsDragging] = useState(false)
   const [retryingRunId, setRetryingRunId] = useState<string | null>(null)
+  const [isExpanded, setIsExpanded] = useState(false)
   const setFallbackDrawerWidthClamped = useCallback((nextWidth: number) => {
     setFallbackDrawerWidth(clampNovelShellDrawerWidth(nextWidth))
   }, [])
@@ -139,16 +150,24 @@ function ActiveNovelCopilotDrawer({
   const startXRef = useRef(0)
   const startWidthRef = useRef(DEFAULT_NOVEL_SHELL_DRAWER_WIDTH)
   const drawerRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeDrawer()
+      if (e.key === 'Escape') {
+        if (isExpanded) {
+          setIsExpanded(false)
+          return
+        }
+        closeDrawer()
+      }
     }
     window.addEventListener('keydown', handleEsc)
     return () => window.removeEventListener('keydown', handleEsc)
-  }, [closeDrawer])
+  }, [closeDrawer, isExpanded])
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if (isExpanded) return
     e.preventDefault()
     e.stopPropagation()
     isDraggingRef.current = true
@@ -157,7 +176,7 @@ function ActiveNovelCopilotDrawer({
     startWidthRef.current = drawerWidth
     document.body.style.cursor = 'ew-resize'
     document.body.style.userSelect = 'none'
-  }, [drawerWidth])
+  }, [drawerWidth, isExpanded])
 
   useEffect(() => {
     const handlePointerMove = (e: PointerEvent) => {
@@ -184,6 +203,15 @@ function ActiveNovelCopilotDrawer({
       document.removeEventListener('pointerup', handlePointerUp)
     }
   }, [setDrawerWidth])
+
+  useEffect(() => {
+    if (!isExpanded) return
+    const originalOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = originalOverflow
+    }
+  }, [isExpanded])
 
   const session = focusedSession ?? focusedSessionMeta
   const workbenchMeta = getCopilotWorkbenchMeta(session.prefill, session.displayTitle, locale)
@@ -224,28 +252,20 @@ function ActiveNovelCopilotDrawer({
     })
   }, [isFocusedSessionBusy, retryInterruptedRun, retryingRunId, session.sessionId])
 
-  return (
+  const shellContainerClassName = cn(
+    'relative flex flex-col overflow-hidden border-l shadow-[var(--nw-copilot-shell-shadow)]',
+    copilotDrawerShellClassName,
+  )
+  const headerActionClassName = cn(
+    'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[18px] text-muted-foreground hover:text-foreground',
+    copilotPillInteractiveClassName,
+  )
+
+  const content = (
     <>
-      <div
-        ref={drawerRef}
-        className={cn(
-          'relative shrink-0 flex flex-col overflow-hidden transition-none border-l',
-          copilotDrawerShellClassName,
-          'shadow-[var(--nw-copilot-shell-shadow)]'
-        )}
-        style={{ width: drawerWidth, transition: isDragging ? 'none' : 'width 0.3s cubic-bezier(0.19,1,0.22,1)' }}
-        data-testid="novel-copilot-drawer"
-        data-state="open"
-        aria-hidden={false}
-      >
-        <div
-          className="absolute left-0 top-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-[hsl(var(--accent)/0.15)] active:bg-[hsl(var(--accent)/0.3)] z-50 transition-colors"
-          onPointerDown={handlePointerDown}
-        />
+      <div className="absolute inset-0 bg-[var(--nw-copilot-shell-bg)]" />
 
-        <div className="absolute inset-0 bg-[var(--nw-copilot-shell-bg)]" />
-
-        <div className="relative flex h-full flex-col">
+      <div className="relative flex h-full flex-col">
           <div className="shrink-0 border-b border-[var(--nw-copilot-border)] bg-[linear-gradient(180deg,hsl(var(--background)/0.16),transparent)]">
             <div className="relative flex items-center justify-between gap-4 px-5 py-3">
               <div className={cn('pointer-events-none absolute inset-x-5 top-0 h-px opacity-80', copilotHighlightLineClassName)} />
@@ -271,16 +291,26 @@ function ActiveNovelCopilotDrawer({
                   </div>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={closeDrawer}
-                className={cn(
-                  'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[18px] text-muted-foreground hover:text-foreground',
-                  copilotPillInteractiveClassName,
-                )}
-              >
-                <X className="h-4 w-4" />
-              </button>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsExpanded((current) => !current)}
+                  className={headerActionClassName}
+                  aria-label={isExpanded ? t('copilot.drawer.exitExpanded') : t('copilot.drawer.expand')}
+                  title={isExpanded ? t('copilot.drawer.exitExpanded') : t('copilot.drawer.expand')}
+                >
+                  {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Expand className="h-4 w-4" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={closeDrawer}
+                  className={headerActionClassName}
+                  aria-label={t('copilot.drawer.close')}
+                  title={t('copilot.drawer.close')}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -290,10 +320,15 @@ function ActiveNovelCopilotDrawer({
             getSessionStatus={(sessionId) => getSessionRun(sessionId)?.status ?? null}
             onFocusSession={focusSession}
             onRemoveSession={removeSession}
+            onNewSession={() => openDrawer(session.prefill, { forceNew: true })}
           />
 
-          <div className="nw-scrollbar-thin flex-1 overflow-y-auto px-4 py-4">
-            {sessionRuns.length === 0 && (
+          <div className="relative min-h-0 flex-1">
+            <div
+              ref={scrollContainerRef}
+              className="nw-scrollbar-thin h-full overflow-y-auto px-4 py-4"
+            >
+              {sessionRuns.length === 0 && (
               <div className="animate-in fade-in duration-700">
                 <div className="px-1">
                   <div className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground/70">
@@ -320,7 +355,7 @@ function ActiveNovelCopilotDrawer({
                   const appliedSuggestions = run.suggestions.filter((suggestion) => suggestion.status === 'applied')
 
                   return (
-                    <div key={run.run_id} className="space-y-4" data-testid={`copilot-run-${run.run_id}`}>
+                    <div key={run.run_id} className="space-y-4" data-testid={`copilot-run-${run.run_id}`} data-run-anchor>
                       {!isLatestRun && <div className="mx-12 border-t border-[var(--nw-copilot-border)]/60" />}
 
                       <div className="flex justify-end">
@@ -381,12 +416,14 @@ function ActiveNovelCopilotDrawer({
                         </div>
                       )}
 
-                      {run.status === 'completed' && run.answer && (
+                      {run.answer && (
                         <div className={cn(copilotPanelClassName, 'rounded-[22px] rounded-tl-md px-4 py-3')}>
                           <div className="mb-1 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground/70">
                             {t('copilot.drawer.analysisResult')}
                           </div>
-                          <div className="whitespace-pre-wrap text-[13px] leading-relaxed text-foreground/90">{run.answer}</div>
+                          <CopilotAnswerContent
+                              answer={run.answer}
+                            />
                         </div>
                       )}
 
@@ -453,18 +490,68 @@ function ActiveNovelCopilotDrawer({
                 })}
               </div>
             )}
+            </div>
+
+            <CopilotScrollNav containerRef={scrollContainerRef} />
           </div>
 
           <div className="shrink-0 border-t border-[var(--nw-copilot-border)] bg-[linear-gradient(180deg,hsl(var(--foreground)/0.03),transparent)] p-4">
             <NovelCopilotComposer
               onSubmit={handleSubmit}
+              onCancel={activeRun ? () => void cancelRun(session.sessionId, activeRun.run_id) : undefined}
               disabled={isFocusedSessionBusy}
+              isBusy={isFocusedSessionBusy && !!activeRun}
               label={workbenchMeta.composerLabel}
               placeholder={workbenchMeta.composerPlaceholder}
             />
           </div>
         </div>
-      </div>
     </>
+  )
+
+  if (isExpanded) {
+    return (
+      <>
+        <div
+          className="fixed inset-0 z-40 bg-black backdrop-blur-sm"
+          onClick={() => setIsExpanded(false)}
+          aria-hidden={true}
+        />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+          <div
+            ref={drawerRef}
+            className={cn(
+              shellContainerClassName,
+              'h-[min(92vh,960px)] w-full max-w-[min(1280px,96vw)] rounded-[28px] border',
+            )}
+            data-testid="novel-copilot-expanded-dialog"
+            data-state="open"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Novel Copilot"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {content}
+          </div>
+        </div>
+      </>
+    )
+  }
+
+  return (
+    <div
+      ref={drawerRef}
+      className={cn(shellContainerClassName, 'shrink-0')}
+      style={{ width: drawerWidth, transition: isDragging ? 'none' : 'width 0.3s cubic-bezier(0.19,1,0.22,1)' }}
+      data-testid="novel-copilot-drawer"
+      data-state="open"
+      aria-hidden={false}
+    >
+      <div
+        className="absolute left-0 top-0 bottom-0 z-50 w-1.5 cursor-ew-resize transition-colors hover:bg-[hsl(var(--accent)/0.15)] active:bg-[hsl(var(--accent)/0.3)]"
+        onPointerDown={handlePointerDown}
+      />
+      {content}
+    </div>
   )
 }

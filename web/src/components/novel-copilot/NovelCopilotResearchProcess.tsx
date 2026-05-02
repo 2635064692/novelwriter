@@ -78,6 +78,41 @@ function getEvidenceReasonText(evidence: CopilotEvidence, locale: UiLocale) {
   return normalized || (evidence.pack_id ? translateUiMessage(locale, 'copilot.research.reason.fromRelatedClues') : '')
 }
 
+function EvidenceDetail({ evidence, locale }: { evidence: CopilotEvidence; locale: UiLocale }) {
+  return (
+    <div className={cn('space-y-2 rounded-[20px] p-3.5', copilotPanelClassName)} data-testid="copilot-research-detail">
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-foreground/72">
+          {getEvidenceDetailHeading(evidence, locale)}
+        </div>
+        <div className="flex flex-wrap justify-end gap-1.5">
+          {getEvidenceStateLabel(evidence, locale) ? (
+            <span className={cn('rounded-full px-2 py-0.5 text-[10px] text-muted-foreground/80', copilotPillClassName)}>
+              {getEvidenceStateLabel(evidence, locale)}
+            </span>
+          ) : null}
+          {chapterLabel(evidence, locale) ? (
+            <span className={cn('rounded-full px-2 py-0.5 text-[10px] text-muted-foreground/80', copilotPillClassName)}>
+              {chapterLabel(evidence, locale)}
+            </span>
+          ) : null}
+          <span className={cn('rounded-full px-2 py-0.5 text-[10px] text-muted-foreground/80', copilotPillClassName)}>
+            {evidence.title}
+          </span>
+        </div>
+      </div>
+      {getEvidenceReasonText(evidence, locale) ? (
+        <div className="text-[12px] text-muted-foreground/76">{getEvidenceReasonText(evidence, locale)}</div>
+      ) : null}
+      <div className={cn('rounded-[18px] px-3 py-3', copilotQuoteClassName)}>
+        <div className="whitespace-pre-wrap text-[13px] leading-6 text-foreground/88">
+          {evidence.excerpt}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function getToolSummaryText(step: CopilotTraceStep, locale: UiLocale) {
   if (locale === 'zh') {
     return step.summary
@@ -130,6 +165,22 @@ function getToolMeta(step: CopilotTraceStep, locale: UiLocale) {
   }
 }
 
+function ToolDetail({ step, locale, t }: { step: CopilotTraceStep; locale: UiLocale; t: ReturnType<typeof useUiLocale>['t'] }) {
+  return (
+    <div className={cn('space-y-2 rounded-[20px] p-3.5', copilotPanelClassName)} data-testid="copilot-research-detail">
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-foreground/72">
+          {t('copilot.research.processDescription')}
+        </div>
+        <span className={cn('rounded-full px-2 py-0.5 text-[10px] text-muted-foreground/80', copilotPillClassName)}>
+          {getToolMeta(step, locale).label}
+        </span>
+      </div>
+      <div className="text-[13px] leading-6 text-foreground/88">{getToolSummaryText(step, locale)}</div>
+    </div>
+  )
+}
+
 function buildProcessSummary(toolCount: number, evidenceCount: number, hasRunningStep: boolean, locale: UiLocale) {
   const parts: string[] = []
   if (toolCount > 0) parts.push(translateUiMessage(locale, 'copilot.research.summary.toolSteps', { count: toolCount }))
@@ -159,15 +210,6 @@ export function NovelCopilotResearchProcess({
   const hasProcessContent = trace.length > 0 || evidence.length > 0
   const [isExpanded, setIsExpanded] = useState(false)
   const [selection, setSelection] = useState<ResearchDetailSelection | null>(null)
-
-  const selectedEvidence =
-    selection?.type === 'evidence'
-      ? evidence.find((item) => item.evidence_id === selection.id) ?? null
-      : null
-  const selectedTool =
-    selection?.type === 'tool'
-      ? toolSteps.find((item) => item.step_id === selection.id) ?? null
-      : null
 
   if (!hasProcessContent) return null
 
@@ -221,23 +263,25 @@ export function NovelCopilotResearchProcess({
                   const Icon = meta.icon
                   const active = selection?.type === 'tool' && selection.id === step.step_id
                   return (
-                    <button
-                      key={step.step_id}
-                      type="button"
-                      onClick={() => setSelection({ type: 'tool', id: step.step_id })}
-                      className={cn(
-                        'flex w-full items-start gap-3 rounded-[18px] px-3 py-2.5 text-left transition-colors',
-                        active ? copilotPanelClassName : copilotPanelMutedClassName,
-                      )}
-                    >
-                      <span className={cn('mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full', copilotPillClassName)}>
-                        <Icon className="h-3.5 w-3.5 text-foreground/78" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-[11px] text-muted-foreground/72">{meta.label}</span>
-                        <span className="mt-1 block text-[12px] leading-5 text-foreground/90">{getToolSummaryText(step, locale)}</span>
-                      </span>
-                    </button>
+                    <div key={step.step_id} className="space-y-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelection({ type: 'tool', id: step.step_id })}
+                        className={cn(
+                          'flex w-full items-start gap-3 rounded-[18px] px-3 py-2.5 text-left transition-colors',
+                          active ? copilotPanelClassName : copilotPanelMutedClassName,
+                        )}
+                      >
+                        <span className={cn('mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full', copilotPillClassName)}>
+                          <Icon className="h-3.5 w-3.5 text-foreground/78" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-[11px] text-muted-foreground/72">{meta.label}</span>
+                          <span className="mt-1 block text-[12px] leading-5 text-foreground/90">{getToolSummaryText(step, locale)}</span>
+                        </span>
+                      </button>
+                      {active ? <ToolDetail step={step} locale={locale} t={t} /> : null}
+                    </div>
                   )
                 })}
               </div>
@@ -259,109 +303,57 @@ export function NovelCopilotResearchProcess({
                   const evidenceStateLabel = getEvidenceStateLabel(item, locale)
                   const evidenceReason = getEvidenceReasonText(item, locale)
                   return (
-                    <button
-                      key={item.evidence_id}
-                      type="button"
-                      onClick={() => setSelection({ type: 'evidence', id: item.evidence_id })}
-                      className={cn(
-                        'flex w-full flex-col gap-2 rounded-[18px] px-3 py-3 text-left transition-colors',
-                        active ? copilotPanelClassName : copilotPanelMutedClassName,
-                      )}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                          <span className={cn('inline-flex items-center rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]', meta.chipClassName)}>
-                            {meta.label}
-                          </span>
-                          {evidenceStateLabel ? (
-                            <span className={cn('rounded-full px-2 py-0.5 text-[10px] text-muted-foreground/78', copilotPillClassName)}>
-                              {evidenceStateLabel}
+                    <div key={item.evidence_id} className="space-y-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelection({ type: 'evidence', id: item.evidence_id })}
+                        className={cn(
+                          'flex w-full flex-col gap-2 rounded-[18px] px-3 py-3 text-left transition-colors',
+                          active ? copilotPanelClassName : copilotPanelMutedClassName,
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                            <span className={cn('inline-flex items-center rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]', meta.chipClassName)}>
+                              {meta.label}
                             </span>
-                          ) : null}
-                          {evidenceChapterLabel ? (
-                            <span className={cn('rounded-full px-2 py-0.5 text-[10px] text-muted-foreground/78', copilotPillClassName)}>
-                              {evidenceChapterLabel}
+                            {evidenceStateLabel ? (
+                              <span className={cn('rounded-full px-2 py-0.5 text-[10px] text-muted-foreground/78', copilotPillClassName)}>
+                                {evidenceStateLabel}
+                              </span>
+                            ) : null}
+                            {evidenceChapterLabel ? (
+                              <span className={cn('rounded-full px-2 py-0.5 text-[10px] text-muted-foreground/78', copilotPillClassName)}>
+                                {evidenceChapterLabel}
+                              </span>
+                            ) : null}
+                          </div>
+                          {evidenceReason ? (
+                            <span className={cn('truncate rounded-full px-2 py-0.5 text-[10px] text-muted-foreground/80', copilotPillClassName)} title={evidenceReason}>
+                              {evidenceReason}
                             </span>
                           ) : null}
                         </div>
-                        {evidenceReason ? (
-                          <span className={cn('truncate rounded-full px-2 py-0.5 text-[10px] text-muted-foreground/80', copilotPillClassName)} title={evidenceReason}>
-                            {evidenceReason}
-                          </span>
+                        <div className="text-[12px] font-medium text-foreground/92">{item.title}</div>
+                        <div className="text-[12px] leading-5 text-muted-foreground/78">{preview}</div>
+                        {item.anchor_terms && item.anchor_terms.length > 0 ? (
+                          <div className="flex flex-wrap gap-1.5">
+                            {item.anchor_terms.slice(0, 4).map((term) => (
+                              <span
+                                key={`${item.evidence_id}-${term}`}
+                                className={cn('rounded-full px-2 py-0.5 text-[10px] text-muted-foreground/76', copilotPillClassName)}
+                              >
+                                {term}
+                              </span>
+                            ))}
+                          </div>
                         ) : null}
-                      </div>
-                      <div className="text-[12px] font-medium text-foreground/92">{item.title}</div>
-                      <div className="text-[12px] leading-5 text-muted-foreground/78">{preview}</div>
-                      {item.anchor_terms && item.anchor_terms.length > 0 ? (
-                        <div className="flex flex-wrap gap-1.5">
-                          {item.anchor_terms.slice(0, 4).map((term) => (
-                            <span
-                              key={`${item.evidence_id}-${term}`}
-                              className={cn('rounded-full px-2 py-0.5 text-[10px] text-muted-foreground/76', copilotPillClassName)}
-                            >
-                              {term}
-                            </span>
-                          ))}
-                        </div>
-                      ) : null}
-                    </button>
+                      </button>
+                      {active ? <EvidenceDetail evidence={item} locale={locale} /> : null}
+                    </div>
                   )
                 })}
               </div>
-            </div>
-          ) : null}
-
-          {(selectedEvidence || selectedTool) ? (
-            <div className={cn('space-y-2 rounded-[20px] p-3.5', copilotPanelClassName)} data-testid="copilot-research-detail">
-              {selectedEvidence ? (
-                <>
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-foreground/72">
-                      {getEvidenceDetailHeading(selectedEvidence, locale)}
-                    </div>
-                    <div className="flex flex-wrap justify-end gap-1.5">
-                      {getEvidenceStateLabel(selectedEvidence, locale) ? (
-                        <span className={cn('rounded-full px-2 py-0.5 text-[10px] text-muted-foreground/80', copilotPillClassName)}>
-                          {getEvidenceStateLabel(selectedEvidence, locale)}
-                        </span>
-                      ) : null}
-                      {chapterLabel(selectedEvidence, locale) ? (
-                        <span className={cn('rounded-full px-2 py-0.5 text-[10px] text-muted-foreground/80', copilotPillClassName)}>
-                          {chapterLabel(selectedEvidence, locale)}
-                        </span>
-                      ) : null}
-                      <span className={cn('rounded-full px-2 py-0.5 text-[10px] text-muted-foreground/80', copilotPillClassName)}>
-                        {selectedEvidence.title}
-                      </span>
-                    </div>
-                  </div>
-                  {getEvidenceReasonText(selectedEvidence, locale) ? (
-                    <div className="text-[12px] text-muted-foreground/76">{getEvidenceReasonText(selectedEvidence, locale)}</div>
-                  ) : null}
-                  <div className={cn('rounded-[18px] px-3 py-3', copilotQuoteClassName)}>
-                    <div className="whitespace-pre-wrap text-[13px] leading-6 text-foreground/88">
-                      {selectedEvidence.excerpt}
-                    </div>
-                  </div>
-                </>
-              ) : null}
-
-              {selectedTool ? (
-                <>
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-foreground/72">
-                      {t('copilot.research.processDescription')}
-                    </div>
-                    <span className={cn('rounded-full px-2 py-0.5 text-[10px] text-muted-foreground/80', copilotPillClassName)}>
-                      {getToolMeta(selectedTool, locale).label}
-                    </span>
-                  </div>
-                  <div className="text-[13px] leading-6 text-foreground/90">{getToolSummaryText(selectedTool, locale)}</div>
-                  <div className={cn('rounded-[18px] px-3 py-3 text-[12px] leading-5 text-muted-foreground/78', copilotPanelMutedClassName)}>
-                    {t('copilot.research.processNote')}
-                  </div>
-                </>
-              ) : null}
             </div>
           ) : null}
         </div>

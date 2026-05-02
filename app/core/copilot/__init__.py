@@ -517,28 +517,32 @@ def open_or_reuse_session(
     context: dict | None,
     interaction_locale: str,
     display_title: str,
+    force_new: bool = False,
 ) -> tuple[CopilotSession, bool]:
     """Return (session, created).  Reuses existing unexpired session if signature matches."""
     context = canonicalize_session_context(context)
     normalized_interaction_locale = normalize_copilot_interaction_locale(interaction_locale)
     sig = build_session_signature(mode, scope, context, normalized_interaction_locale)
 
-    existing = _load_session_by_signature(
-        db,
-        novel_id=novel_id,
-        user_id=user_id,
-        signature=sig,
-    )
+    if not force_new:
+        existing = _load_session_by_signature(
+            db,
+            novel_id=novel_id,
+            user_id=user_id,
+            signature=sig,
+        )
 
-    if existing is not None:
-        existing.last_active_at = func.now()
-        existing.context_json = context
-        existing.interaction_locale = normalized_interaction_locale
-        if display_title:
-            existing.display_title = display_title
-        db.commit()
-        db.refresh(existing)
-        return existing, False
+        if existing is not None:
+            existing.last_active_at = func.now()
+            existing.context_json = context
+            existing.interaction_locale = normalized_interaction_locale
+            if display_title:
+                existing.display_title = display_title
+            db.commit()
+            db.refresh(existing)
+            return existing, False
+
+    final_sig = f"{sig}__{_utcnow_naive().strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:8]}" if force_new else sig
 
     session = CopilotSession(
         session_id=str(uuid.uuid4()),
@@ -548,7 +552,7 @@ def open_or_reuse_session(
         scope=scope,
         context_json=context,
         interaction_locale=normalized_interaction_locale,
-        signature=sig,
+        signature=final_sig,
         display_title=display_title or "",
     )
     db.add(session)
@@ -556,6 +560,13 @@ def open_or_reuse_session(
         db.commit()
     except IntegrityError as exc:
         db.rollback()
+        if force_new:
+            raise CopilotError(
+                code="copilot_session_conflict",
+                message="Copilot session creation conflict, please retry",
+                status_code=409,
+            ) from exc
+
         if not _is_session_signature_conflict(exc):
             raise CopilotError(
                 code="copilot_session_conflict",
@@ -1117,6 +1128,34 @@ def check_stale_run(run: CopilotRun) -> bool:
     )
     _settle_attached_run_quota(run)
     return True
+
+
+def interrupt_run(
+    db: Session,
+    novel_id: int,
+    user_id: int,
+    session_id: str,
+    run_id: str,
+) -> CopilotRun:
+    """User-initiated interrupt of a queued or running run.
+
+    Idempotent: returns the run as-is if already in a terminal status.
+    Clears the lease so any active tool-loop worker exits on its next checkpoint.
+    Preserves workspace_json for potential resume.
+    """
+    run = load_run(db, novel_id, user_id, session_id, run_id)
+    if run.status not in ACTIVE_RUN_STATUSES:
+        return run
+
+    now = _utcnow_naive()
+    _interrupt_run(
+        run,
+        message=_copilot_run_interrupted_message(_resolve_run_interaction_locale(run)),
+        now=now,
+    )
+    _settle_run_quota(db, run)
+    db.commit()
+    return run
 
 
 # ---------------------------------------------------------------------------

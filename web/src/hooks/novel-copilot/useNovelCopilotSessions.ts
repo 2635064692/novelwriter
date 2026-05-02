@@ -37,6 +37,7 @@ function buildOpenSessionRequest(session: NovelCopilotSession) {
     context: session.prefill.context,
     interaction_locale: session.interactionLocale,
     display_title: session.displayTitle,
+    force_new: session.forceNew ?? false,
   }
 }
 
@@ -144,35 +145,41 @@ export function useNovelCopilotSessionsState({
     if (novelId == null) return ''
 
     const currentSessions = sessionsRef.current
-    const signature = buildCopilotSessionSignature(prefill, novelId, normalizedInteractionLocale)
     const displayTitle = options?.displayTitle?.trim() || getDefaultCopilotSessionTitle(prefill)
-    const existing = currentSessions.find((session) => session.signature === signature)
 
-    if (existing) {
-      const nextExistingSession = {
-        ...existing,
-        prefill,
-        displayTitle,
-      }
+    if (!options?.forceNew) {
+      const signature = buildCopilotSessionSignature(prefill, novelId, normalizedInteractionLocale)
+      const existing = currentSessions.find((session) => session.signature === signature)
 
-      if (
-        existing.displayTitle !== displayTitle
-        || existing.prefill !== prefill
-      ) {
-        commitSessions(
-          currentSessions.map((session) =>
-            session.sessionId === existing.sessionId
-              ? nextExistingSession
-              : session,
-          ),
-        )
+      if (existing) {
+        const nextExistingSession = {
+          ...existing,
+          prefill,
+          displayTitle,
+        }
+
+        if (
+          existing.displayTitle !== displayTitle
+          || existing.prefill !== prefill
+        ) {
+          commitSessions(
+            currentSessions.map((session) =>
+              session.sessionId === existing.sessionId
+                ? nextExistingSession
+                : session,
+            ),
+          )
+        }
+        setFocusedSessionId(existing.sessionId)
+        setIsOpen(true)
+        prefetchBackendSession(existing.sessionId)
+        return existing.sessionId
       }
-      setFocusedSessionId(existing.sessionId)
-      setIsOpen(true)
-      prefetchBackendSession(existing.sessionId)
-      return existing.sessionId
     }
 
+    const signature = options?.forceNew
+      ? buildCopilotSessionSignature(prefill, novelId, normalizedInteractionLocale) + `__${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`
+      : buildCopilotSessionSignature(prefill, novelId, normalizedInteractionLocale)
     const localId = buildLocalSessionId()
     const nextSession: NovelCopilotSession = {
       sessionId: localId,
@@ -182,6 +189,7 @@ export function useNovelCopilotSessionsState({
       novelId,
       interactionLocale: normalizedInteractionLocale,
       backendSessionId: null,
+      forceNew: options?.forceNew,
     }
 
     commitSessions([...currentSessions, nextSession])
