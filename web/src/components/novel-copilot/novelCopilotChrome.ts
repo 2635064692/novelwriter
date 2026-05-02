@@ -1,5 +1,5 @@
 export const copilotDrawerShellClassName =
-  'border border-[var(--nw-copilot-border)] [background:var(--nw-copilot-shell-bg)] [box-shadow:var(--nw-copilot-shell-shadow)] backdrop-blur-3xl'
+  'border border-[var(--nw-copilot-border)] [background:var(--nw-copilot-shell-bg)] [box-shadow:var(--nw-copilot-shell-shadow)]'
 
 export const copilotPanelClassName =
   'border border-[var(--nw-copilot-border)] bg-[var(--nw-copilot-panel-bg)]'
