@@ -3,6 +3,7 @@ import {
   buildCopilotSessionSignature,
   normalizeCopilotInteractionLocale,
   type CopilotPrefill,
+  type CopilotSessionListItem,
   type OpenNovelCopilotOptions,
   type NovelCopilotSession,
 } from '@/types/copilot'
@@ -20,10 +21,25 @@ export interface NovelCopilotSessionsOnlyState {
   reopenDrawer: () => void
   resolveBackendSessionId: (sessionId: string) => Promise<string>
   updateSessionModelId: (sessionId: string, modelId: number | null) => void
+  restoreSession: (item: CopilotSessionListItem) => string
 }
 
 function buildLocalSessionId() {
   return `ncs_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
+}
+
+function buildPrefillFromHistory(item: CopilotSessionListItem): CopilotPrefill {
+  const ctx = item.context ?? {}
+  if (item.scope === 'whole_book') {
+    return { mode: 'research', scope: 'whole_book', context: ctx } as CopilotPrefill
+  }
+  if (item.scope === 'current_entity') {
+    return { mode: 'current_entity', scope: 'current_entity', context: ctx } as CopilotPrefill
+  }
+  if (item.mode === 'draft_cleanup') {
+    return { mode: 'draft_cleanup', scope: 'current_tab', context: ctx } as CopilotPrefill
+  }
+  return { mode: 'research', scope: 'current_tab', context: ctx } as CopilotPrefill
 }
 
 interface BackendSessionRequestState {
@@ -255,6 +271,26 @@ export function useNovelCopilotSessionsState({
     if (sessionsRef.current.length > 0) setIsOpen(true)
   }, [])
 
+  const restoreSession = useCallback((item: CopilotSessionListItem): string => {
+    if (novelId == null) return ''
+    const currentSessions = sessionsRef.current
+    const prefill = buildPrefillFromHistory(item)
+    const localId = buildLocalSessionId()
+    const nextSession: NovelCopilotSession = {
+      sessionId: localId,
+      signature: buildCopilotSessionSignature(prefill, novelId, item.interaction_locale),
+      prefill,
+      displayTitle: item.display_title,
+      novelId,
+      interactionLocale: item.interaction_locale,
+      backendSessionId: item.session_id,
+    }
+    commitSessions([...currentSessions, nextSession])
+    setFocusedSessionId(localId)
+    setIsOpen(true)
+    return localId
+  }, [commitSessions, novelId])
+
   return {
     isOpen,
     sessions,
@@ -266,5 +302,6 @@ export function useNovelCopilotSessionsState({
     reopenDrawer,
     resolveBackendSessionId,
     updateSessionModelId,
+    restoreSession,
   }
 }

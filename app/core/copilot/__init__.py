@@ -25,7 +25,7 @@ from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from sqlalchemy import func
+from sqlalchemy import desc, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, object_session
 
@@ -107,6 +107,7 @@ __all__ = [
     "apply_suggestions",
     "derive_runtime_profile",
     "dismiss_suggestions",
+    "list_sessions",
     "_deduplicate_packs",
     "_find_from_chapters",
     "_find_from_draft_auditors",
@@ -615,6 +616,113 @@ def load_session(db: Session, novel_id: int, user_id: int, session_id: str) -> C
     if session is None:
         raise CopilotError(code="session_not_found", message="Copilot session not found", status_code=404)
     return session
+
+
+def list_sessions(
+    db: Session,
+    *,
+    novel_id: int,
+    user_id: int,
+    page: int = 1,
+    page_size: int = 15,
+    mode: str | None = None,
+    scope: str | None = None,
+) -> tuple[list[dict], int]:
+    """Return paginated session list with aggregated run info.
+
+    Returns (items_as_dicts, total_count).
+    """
+    if page < 1:
+        page = 1
+    if page_size < 1:
+        page_size = 15
+    if page_size > 50:
+        page_size = 50
+
+    run_count_subq = (
+        db.query(
+            CopilotRun.copilot_session_id,
+            func.count(CopilotRun.id).label("run_count"),
+        )
+        .group_by(CopilotRun.copilot_session_id)
+        .subquery()
+    )
+
+    latest_run_subq = (
+        db.query(
+            CopilotRun.copilot_session_id,
+            CopilotRun.status.label("latest_run_status"),
+            func.row_number()
+            .over(
+                partition_by=CopilotRun.copilot_session_id,
+                order_by=[desc(CopilotRun.created_at), desc(CopilotRun.id)],
+            )
+            .label("rn"),
+        )
+        .subquery()
+    )
+
+    filtered_latest = (
+        db.query(
+            latest_run_subq.c.copilot_session_id,
+            latest_run_subq.c.latest_run_status,
+        )
+        .filter(latest_run_subq.c.rn == 1)
+        .subquery()
+    )
+
+    query = (
+        db.query(
+            CopilotSession.session_id,
+            CopilotSession.mode,
+            CopilotSession.scope,
+            CopilotSession.context_json,
+            CopilotSession.interaction_locale,
+            CopilotSession.display_title,
+            CopilotSession.last_active_at,
+            CopilotSession.created_at,
+            func.coalesce(run_count_subq.c.run_count, 0).label("run_count"),
+            filtered_latest.c.latest_run_status,
+        )
+        .outerjoin(run_count_subq, CopilotSession.id == run_count_subq.c.copilot_session_id)
+        .outerjoin(filtered_latest, CopilotSession.id == filtered_latest.c.copilot_session_id)
+        .filter(
+            CopilotSession.novel_id == novel_id,
+            CopilotSession.user_id == user_id,
+        )
+    )
+
+    if mode:
+        query = query.filter(CopilotSession.mode == mode)
+    if scope:
+        query = query.filter(CopilotSession.scope == scope)
+
+    total = query.count()
+
+    rows = (
+        query.order_by(desc(CopilotSession.last_active_at), desc(CopilotSession.id))
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+
+    items = [
+        {
+            "session_id": r.session_id,
+            "mode": r.mode,
+            "scope": r.scope,
+            "context": r.context_json,
+            "interaction_locale": r.interaction_locale,
+            "display_title": r.display_title,
+            "run_count": r.run_count,
+            "latest_run_status": r.latest_run_status,
+            "last_active_at": r.last_active_at,
+            "created_at": r.created_at,
+        }
+        for r in rows
+    ]
+
+    return items, total
 
 
 # ---------------------------------------------------------------------------

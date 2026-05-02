@@ -10,6 +10,8 @@ import type {
   CopilotRun,
   CopilotRunStatus,
   CopilotScope,
+  CopilotSessionListItem,
+  CopilotSessionListResponse,
   CopilotSuggestion,
   CopilotSuggestionApplyAction,
   CopilotSuggestionPreview,
@@ -295,6 +297,33 @@ function parseCopilotRunListResponse(value: unknown): CopilotRunResponse[] {
   return expectArray(value, 'copilot run list response').map(parseCopilotRunResponse)
 }
 
+function parseCopilotSessionListItem(value: unknown): CopilotSessionListItem {
+  const body = expectRecord(value, 'copilot session list item')
+  return {
+    session_id: expectString(body.session_id, 'copilot session list item.session_id'),
+    mode: expectEnumValue(body.mode, COPILOT_MODES, 'copilot session list item.mode'),
+    scope: expectEnumValue(body.scope, COPILOT_SCOPES, 'copilot session list item.scope'),
+    context: parseCopilotContextData(body.context),
+    interaction_locale: expectString(body.interaction_locale, 'copilot session list item.interaction_locale'),
+    display_title: expectString(body.display_title, 'copilot session list item.display_title'),
+    run_count: typeof body.run_count === 'number' ? body.run_count : 0,
+    latest_run_status: readOptionalString(body.latest_run_status) ?? null,
+    last_active_at: readOptionalString(body.last_active_at) ?? null,
+    created_at: expectString(body.created_at, 'copilot session list item.created_at'),
+  }
+}
+
+function parseCopilotSessionListResponse(value: unknown): CopilotSessionListResponse {
+  const body = expectRecord(value, 'copilot session list response')
+  return {
+    items: expectArray(body.items, 'copilot session list response.items').map(parseCopilotSessionListItem),
+    total: typeof body.total === 'number' ? body.total : 0,
+    page: typeof body.page === 'number' ? body.page : 1,
+    page_size: typeof body.page_size === 'number' ? body.page_size : 15,
+    total_pages: typeof body.total_pages === 'number' ? body.total_pages : 1,
+  }
+}
+
 export interface CopilotSessionOpenRequest {
   mode: CopilotMode
   scope: CopilotScope
@@ -341,6 +370,16 @@ export const copilotApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  listSessions: (novelId: number, params?: { page?: number; page_size?: number; mode?: string; scope?: string }) => {
+    const query = new URLSearchParams()
+    if (params?.page) query.set('page', String(params.page))
+    if (params?.page_size) query.set('page_size', String(params.page_size))
+    if (params?.mode) query.set('mode', params.mode)
+    if (params?.scope) query.set('scope', params.scope)
+    const qs = query.toString()
+    return requestParsed(`/api/novels/${novelId}/world/copilot/sessions${qs ? `?${qs}` : ''}`, parseCopilotSessionListResponse, {})
+  },
 
   createRun: (novelId: number, sessionId: string, data: CopilotRunCreateRequest) =>
     requestParsed(`/api/novels/${novelId}/world/copilot/sessions/${sessionId}/runs`, parseCopilotRunResponse, {
