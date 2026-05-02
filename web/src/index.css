@@ -58,8 +58,7 @@
     --nw-copilot-overlay-bg: linear-gradient(180deg, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.3));
     --nw-copilot-border: rgba(255, 255, 255, 0.08);
     --nw-copilot-border-strong: rgba(255, 255, 255, 0.14);
-    --nw-copilot-shell-bg:
-      linear-gradient(180deg, rgba(30, 32, 36, 0.65), rgba(20, 22, 26, 0.55) 50%, rgba(15, 17, 20, 0.45));
+    --nw-copilot-shell-bg: hsl(230 15% 7%);
     --nw-copilot-shell-shadow: 0 40px 80px rgba(0, 0, 0, 0.6), 0 10px 30px rgba(0, 0, 0, 0.4);
     --nw-copilot-panel-bg:
       linear-gradient(160deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02) 54%, rgba(0, 0, 0, 0.1));
