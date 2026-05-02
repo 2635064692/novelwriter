@@ -1,7 +1,8 @@
 """LLM test endpoint — validate user-supplied API config."""
 
-import json
 import time
+
+from app.core.llm_json import parse_llm_json_response
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from openai import AsyncOpenAI
@@ -56,7 +57,7 @@ async def _probe_json_mode_support(client: AsyncOpenAI, model: str) -> None:
         response_format={"type": "json_object"},
     )
     raw = response.choices[0].message.content or ""
-    parsed = json.loads(raw)
+    parsed = parse_llm_json_response(raw)
     if not isinstance(parsed, dict):
         raise ValueError("JSON mode response is not an object")
 

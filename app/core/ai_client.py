@@ -6,6 +6,7 @@ import logging
 from openai import AsyncOpenAI
 from pydantic import BaseModel
 from app.config import get_settings
+from app.core.llm_json import normalize_llm_json_payload
 from app.core.safety_fuses import ensure_ai_available_fresh_session
 
 logger = logging.getLogger(__name__)
@@ -464,7 +465,10 @@ class AIClient:
         schema_json = json.dumps(response_model.model_json_schema(), ensure_ascii=False)
         structured_system = (
             f"{system_prompt}\n\n"
-            f"You MUST respond with valid JSON matching this schema:\n{schema_json}"
+            "You MUST respond with a valid raw JSON object matching this schema.\n"
+            "Do not wrap the JSON in Markdown fences.\n"
+            "Do not include explanations before or after the JSON.\n"
+            f"Schema:\n{schema_json}"
         )
 
         last_request_error: Exception | None = None
@@ -526,8 +530,9 @@ class AIClient:
                     ),
                 )
 
+            json_payload = normalize_llm_json_payload(raw)
             try:
-                return response_model.model_validate_json(raw)
+                return response_model.model_validate_json(json_payload)
             except Exception as e:
                 last_parse_error = e
                 logger.warning(
