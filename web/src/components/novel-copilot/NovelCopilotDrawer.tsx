@@ -56,6 +56,7 @@ export function NovelCopilotDrawer({
     retryInterruptedRun,
     applySuggestions,
     dismissSuggestions,
+    openDrawer,
   } = useNovelCopilot()
   const shell = useOptionalNovelShell()
   const focusedSessionMeta =
@@ -87,6 +88,7 @@ export function NovelCopilotDrawer({
       retryInterruptedRun={retryInterruptedRun}
       applySuggestions={applySuggestions}
       dismissSuggestions={dismissSuggestions}
+      openDrawer={openDrawer}
     />
   )
 }
@@ -108,6 +110,7 @@ function ActiveNovelCopilotDrawer({
   retryInterruptedRun,
   applySuggestions,
   dismissSuggestions,
+  openDrawer,
 }: {
   onLocateTarget?: (target: CopilotSuggestionTarget) => void
   shell: ReturnType<typeof useOptionalNovelShell>
@@ -125,6 +128,7 @@ function ActiveNovelCopilotDrawer({
   retryInterruptedRun: ReturnType<typeof useNovelCopilot>['retryInterruptedRun']
   applySuggestions: ReturnType<typeof useNovelCopilot>['applySuggestions']
   dismissSuggestions: ReturnType<typeof useNovelCopilot>['dismissSuggestions']
+  openDrawer: ReturnType<typeof useNovelCopilot>['openDrawer']
 }) {
   const { locale, t } = useUiLocale()
   const [fallbackDrawerWidth, setFallbackDrawerWidth] = useState(DEFAULT_NOVEL_SHELL_DRAWER_WIDTH)
@@ -290,6 +294,7 @@ function ActiveNovelCopilotDrawer({
             getSessionStatus={(sessionId) => getSessionRun(sessionId)?.status ?? null}
             onFocusSession={focusSession}
             onRemoveSession={removeSession}
+            onNewSession={() => openDrawer(session.prefill, { forceNew: true })}
           />
 
           <div className="nw-scrollbar-thin flex-1 overflow-y-auto px-4 py-4">

@@ -45,6 +45,7 @@ export const copilotZhMessages = {
   'copilot.sessionStrip.hint': '切换查看不会中断后台运行',
   'copilot.sessionStrip.current': '当前',
   'copilot.sessionStrip.close': '关闭会话',
+  'copilot.sessionStrip.newSession': '新建同类会话',
 
   'copilot.runStatus.queued': '排队中',
   'copilot.runStatus.running': '运行中',
@@ -251,6 +252,7 @@ export const copilotEnMessages = {
   'copilot.sessionStrip.hint': 'Switching views does not interrupt background runs',
   'copilot.sessionStrip.current': 'Current',
   'copilot.sessionStrip.close': 'Close session',
+  'copilot.sessionStrip.newSession': 'New session',
 
   'copilot.runStatus.queued': 'Queued',
   'copilot.runStatus.running': 'Running',

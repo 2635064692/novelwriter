@@ -1,4 +1,4 @@
-import { X } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useUiLocale } from '@/contexts/UiLocaleContext'
 import type { CopilotRunStatus, NovelCopilotSession } from '@/types/copilot'
@@ -18,12 +18,14 @@ export function NovelCopilotSessionStrip({
   getSessionStatus,
   onFocusSession,
   onRemoveSession,
+  onNewSession,
 }: {
   sessions: NovelCopilotSession[]
   focusedSessionId: string | null
   getSessionStatus: (sessionId: string) => CopilotRunStatus | null
   onFocusSession: (sessionId: string) => void
   onRemoveSession: (sessionId: string) => void
+  onNewSession?: () => void
 }) {
   const { locale, t } = useUiLocale()
   if (sessions.length === 0) return null
@@ -66,6 +68,20 @@ export function NovelCopilotSessionStrip({
               </span>
             </span>
           </button>
+          {onNewSession && (
+            <button
+              type="button"
+              onClick={onNewSession}
+              aria-label={t('copilot.sessionStrip.newSession')}
+              data-role="new-session"
+              className={cn(
+                'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground/72 transition-colors hover:text-foreground',
+                copilotPillInteractiveClassName,
+              )}
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+          )}
           <button
             type="button"
             onClick={() => onRemoveSession(session.sessionId)}
@@ -164,6 +180,20 @@ export function NovelCopilotSessionStrip({
               </div>
             )
           })}
+          {onNewSession && (
+            <button
+              type="button"
+              onClick={onNewSession}
+              aria-label={t('copilot.sessionStrip.newSession')}
+              data-role="new-session"
+              className={cn(
+                'flex min-w-[80px] shrink-0 snap-start items-center justify-center rounded-[20px] py-3 text-muted-foreground/72 transition-colors hover:text-foreground',
+                copilotPillInteractiveClassName,
+              )}
+            >
+              <Plus className="h-5 w-5" />
+            </button>
+          )}
         </div>
       </div>
     </div>
