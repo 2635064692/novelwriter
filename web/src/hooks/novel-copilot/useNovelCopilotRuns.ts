@@ -203,6 +203,7 @@ export function useNovelCopilotRuns({
   const focusedSession = focusedSessionId ? sessionsById.get(focusedSessionId) ?? null : null
   const activeRuns = focusedSessionId ? runsBySessionId[focusedSessionId] ?? [] : []
   const activeRun = activeRuns[activeRuns.length - 1] ?? null
+  const focusedBackendSessionId = focusedSession?.backendSessionId ?? null
 
   const getSessionRun = useCallback(
     (sessionId: string) => {
@@ -347,7 +348,8 @@ export function useNovelCopilotRuns({
   }, [setRunsBySessionId, t, timeoutIdsRef])
 
   useEffect(() => {
-    const session = focusedSession
+    if (!focusedSessionId) return
+    const session = sessionsByIdRef.current.get(focusedSessionId) ?? null
     if (!session || activeRuns.length > 0 || !session.backendSessionId) return
     if (hydratingSessionIdsRef.current.has(session.sessionId)) return
     const hydratedBackendSessionId = session.backendSessionId
@@ -389,8 +391,9 @@ export function useNovelCopilotRuns({
 
     return () => {
       cancelled = true
+      hydratingSessionIdsRef.current.delete(session.sessionId)
     }
-  }, [activeRuns.length, focusedSession, setRunsBySessionId, startPolling])
+  }, [activeRuns.length, focusedSessionId, focusedBackendSessionId, setRunsBySessionId, startPolling])
 
   // -----------------------------------------------------------------------
   // Submit prompt
