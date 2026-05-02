@@ -7,6 +7,7 @@ import '@/lib/uiMessagePacks/novel'
 import { useQuery } from '@tanstack/react-query'
 import { Maximize2, Minimize2, MoreHorizontal, Pencil, Trash2, Upload } from 'lucide-react'
 import { ChapterContent } from '@/components/detail/ChapterContent'
+import { PlainTextContent } from '@/components/ui/plain-text-content'
 import { ChapterEditor } from '@/components/detail/ChapterEditor'
 import { EmptyWorldOnboarding } from '@/components/detail/EmptyWorldOnboarding'
 import { PageShell } from '@/components/layout/PageShell'
@@ -129,6 +130,13 @@ export function NovelStudioPage() {
   const [editorContent, setEditorContent] = useState('')
   const [showMoreActions, setShowMoreActions] = useState(false)
   const [immersive, setImmersive] = useState(false)
+
+  useEffect(() => {
+    if (!immersive) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [immersive])
 
   const [worldGenOpen, setWorldGenOpen] = useState(false)
   const [bootstrapError, setBootstrapError] = useState<string | null>(null)
@@ -686,7 +694,6 @@ export function NovelStudioPage() {
         </>
       ) : (
         <NovelShellLayout className="flex-1 min-h-0 p-3 gap-3 overflow-hidden">
-          {!immersive && (
           <NovelShellRail className="w-[280px] shrink-0 flex flex-col min-h-0 h-full rounded-[16px] border border-[var(--nw-glass-border)] bg-[var(--nw-glass-bg)] backdrop-blur-[24px] shadow-[var(--nw-copilot-panel-shadow)] overflow-hidden">
             <StudioNavigationRail
               novelTitle={novel.title}
@@ -731,7 +738,6 @@ export function NovelStudioPage() {
               activeStage={activeStage}
             />
           </NovelShellRail>
-          )}
           <ArtifactStage className="flex-1 min-w-0 flex flex-col rounded-[16px] border border-[var(--nw-glass-border)] bg-[var(--nw-glass-bg)] backdrop-blur-[24px] shadow-[var(--nw-copilot-panel-shadow)] overflow-hidden">
             {hasResultsContext ? (
               <div className={activeStage === 'results' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}>
@@ -751,6 +757,8 @@ export function NovelStudioPage() {
                     )
                   }}
                   onDebugChange={handleResultsDebugChange}
+                  immersive={immersive}
+                  onToggleImmersive={() => setImmersive(!immersive)}
                 />
               </div>
             ) : null}
@@ -1021,8 +1029,7 @@ export function NovelStudioPage() {
             )}
           </ArtifactStage>
 
-          {!immersive && (
-          showWorkbenchRail ? (
+          {showWorkbenchRail ? (
             <NovelCopilotDrawer novelId={novelId} onLocateTarget={handleStudioLocateTarget} />
           ) : showInjectionSummaryRail && resultsDebug ? (
             <NovelShellRail className="w-[360px] shrink-0 flex flex-col min-h-0 h-full rounded-[16px] border border-[var(--nw-glass-border)] bg-[var(--nw-glass-bg)] backdrop-blur-[24px] shadow-[var(--nw-copilot-panel-shadow)] overflow-hidden">
@@ -1048,9 +1055,40 @@ export function NovelStudioPage() {
                 contextualCopilotAction={contextualCopilotAction}
               />
             </NovelShellRail>
-          )
           )}
         </NovelShellLayout>
+      )}
+
+      {immersive && activeChapterNum !== null && !editMode && !hasResultsContext && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-[hsl(var(--background))]">
+          <div className="shrink-0 flex items-center justify-between px-8 py-4 lg:px-16">
+            <div className="min-w-0 flex-1">
+              {currentMeta ? (
+                <h1 className="font-mono text-[22px] font-semibold leading-tight text-foreground truncate">
+                  {displayTitle}
+                </h1>
+              ) : null}
+            </div>
+            <NwButton
+              onClick={() => setImmersive(false)}
+              variant="glass"
+              className="h-10 rounded-[10px] px-4 py-2 text-sm font-medium"
+              title={t('studio.chapter.exitImmersive')}
+            >
+              <Minimize2 size={14} />
+              {t('studio.chapter.exitImmersive')}
+            </NwButton>
+          </div>
+          <div className="flex-1 min-h-0 overflow-y-auto nw-scrollbar-thin px-8 pb-12 lg:px-16">
+            <PlainTextContent
+              isLoading={chapterLoading}
+              content={chapter?.content ?? null}
+              maxWidth
+              contentClassName="space-y-8"
+              paragraphClassName="text-[18px] leading-[2.2]"
+            />
+          </div>
+        </div>
       )}
     </PageShell>
   )

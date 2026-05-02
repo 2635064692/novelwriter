@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import '@/lib/uiMessagePacks/novel'
-import { Check, RefreshCw, Upload, Info, ChevronDown, ChevronRight, Loader2, Settings, MessageSquarePlus } from 'lucide-react'
+import { Check, Maximize2, Minimize2, RefreshCw, Upload, Info, ChevronDown, ChevronRight, Loader2, Settings, MessageSquarePlus } from 'lucide-react'
 import { NwButton } from '@/components/ui/nw-button'
 import { PlainTextContent, type TextAnnotation } from '@/components/ui/plain-text-content'
 import { FeedbackForm, type FeedbackAnswers } from '@/components/feedback/FeedbackForm'
@@ -39,6 +39,8 @@ export function ContinuationResultsStage({
   showInjectionSummaryRail,
   onToggleInjectionSummaryRail,
   onDebugChange,
+  immersive,
+  onToggleImmersive,
 }: {
   novelId: number
   activeChapterNum: number | null
@@ -46,11 +48,20 @@ export function ContinuationResultsStage({
   showInjectionSummaryRail: boolean
   onToggleInjectionSummaryRail: () => void
   onDebugChange: (debug: ContinueDebugSummary | null) => void
+  immersive?: boolean
+  onToggleImmersive?: () => void
 }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, refreshQuota } = useAuth()
   const { locale, t } = useUiLocale()
+
+  useEffect(() => {
+    if (!immersive) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [immersive])
   const state = location.state as {
     streamParams?: ContinueRequest
     novelId?: number
@@ -564,6 +575,18 @@ export function ContinuationResultsStage({
                 <Upload size={14} />
                 {t('continuation.results.exportAll')}
               </NwButton>
+
+              {onToggleImmersive && (
+                <NwButton
+                  onClick={onToggleImmersive}
+                  variant="glass"
+                  className="h-10 rounded-[10px] px-4 py-2 text-sm font-medium"
+                  title={immersive ? t('studio.chapter.exitImmersive') : t('studio.chapter.immersive')}
+                >
+                  {immersive ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                  {immersive ? t('studio.chapter.exitImmersive') : t('studio.chapter.immersive')}
+                </NwButton>
+              )}
             </div>
           </div>
         </div>
@@ -691,6 +714,43 @@ export function ContinuationResultsStage({
           submitting={feedbackSubmitting}
         />
       ) : null}
+
+      {immersive && currentContent && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-[hsl(var(--background))]">
+          <div className="shrink-0 flex items-center justify-between px-8 py-4 lg:px-16">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center rounded-full border border-[var(--nw-glass-border)] bg-background/20 px-2.5 py-1 text-[11px] font-medium text-foreground/88">
+                  {t('continuation.results.badge')}
+                </span>
+                {activeChapterNum !== null && (
+                  <span className="inline-flex items-center rounded-full border border-[var(--nw-glass-border)] bg-background/20 px-2.5 py-1 text-[11px] text-muted-foreground">
+                    {t('continuation.results.continuationOf', { chapter: activeChapterReference ?? `Ch. ${activeChapterNum}` })}
+                  </span>
+                )}
+              </div>
+            </div>
+            <NwButton
+              onClick={onToggleImmersive}
+              variant="glass"
+              className="h-10 rounded-[10px] px-4 py-2 text-sm font-medium"
+              title={t('studio.chapter.exitImmersive')}
+            >
+              <Minimize2 size={14} />
+              {t('studio.chapter.exitImmersive')}
+            </NwButton>
+          </div>
+          <div className="flex-1 min-h-0 overflow-y-auto nw-scrollbar-thin px-8 pb-12 lg:px-16">
+            <PlainTextContent
+              content={currentContent}
+              maxWidth
+              contentClassName="space-y-8"
+              paragraphClassName="text-[18px] leading-[2.2]"
+              annotations={driftAnnotations}
+            />
+          </div>
+        </div>
+      )}
     </>
   )
 }
