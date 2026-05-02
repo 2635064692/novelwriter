@@ -306,6 +306,7 @@ export interface CopilotSessionOpenRequest {
   } | null
   interaction_locale?: string
   display_title?: string
+  force_new?: boolean
 }
 
 export interface CopilotSessionResponse {

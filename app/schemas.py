@@ -972,6 +972,7 @@ class CopilotSessionOpenRequest(BaseModel):
     context: Optional[CopilotContextData] = None
     interaction_locale: str = Field(default="zh", max_length=10)
     display_title: str = Field(default="", max_length=255)
+    force_new: bool = False
 
     @field_validator("interaction_locale", mode="before")
     @classmethod

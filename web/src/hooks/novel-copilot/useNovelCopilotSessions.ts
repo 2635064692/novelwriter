@@ -37,6 +37,7 @@ function buildOpenSessionRequest(session: NovelCopilotSession) {
     context: session.prefill.context,
     interaction_locale: session.interactionLocale,
     display_title: session.displayTitle,
+    force_new: session.forceNew ?? false,
   }
 }
 
@@ -188,6 +189,7 @@ export function useNovelCopilotSessionsState({
       novelId,
       interactionLocale: normalizedInteractionLocale,
       backendSessionId: null,
+      forceNew: options?.forceNew,
     }
 
     commitSessions([...currentSessions, nextSession])

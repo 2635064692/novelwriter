@@ -98,6 +98,7 @@ def session_open(
             context=context,
             interaction_locale=body.interaction_locale,
             display_title=body.display_title,
+            force_new=body.force_new,
         )
         return CopilotSessionResponse(
             session_id=session.session_id,
