@@ -1007,6 +1007,27 @@ class CopilotSessionOpenRequest(BaseModel):
         return self
 
 
+class CopilotSessionListItem(BaseModel):
+    session_id: str
+    mode: str
+    scope: str
+    context: Optional[CopilotContextData] = None
+    interaction_locale: str
+    display_title: str
+    run_count: int = 0
+    latest_run_status: Optional[str] = None
+    last_active_at: Optional[datetime] = None
+    created_at: datetime
+
+
+class CopilotSessionListResponse(BaseModel):
+    items: List[CopilotSessionListItem]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
 class CopilotSessionResponse(BaseModel):
     session_id: str
     signature: str

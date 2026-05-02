@@ -31,6 +31,7 @@ from app.core.copilot import (
     execute_copilot_run,
     interrupt_run,
     list_session_runs,
+    list_sessions,
     load_latest_run,
     load_run,
     load_session,
@@ -49,6 +50,8 @@ from app.schemas import (
     CopilotFieldDeltaResponse,
     CopilotRunCreateRequest,
     CopilotRunResponse,
+    CopilotSessionListResponse,
+    CopilotSessionListItem,
     CopilotSessionOpenRequest,
     CopilotSessionResponse,
     CopilotSuggestionPreviewResponse,
@@ -113,6 +116,37 @@ def session_open(
         )
     except CopilotError as exc:
         _handle_copilot_error(exc)
+
+
+@router.get("/sessions", response_model=CopilotSessionListResponse)
+def session_list(
+    novel_id: int,
+    page: int = 1,
+    page_size: int = 15,
+    mode: str | None = None,
+    scope: str | None = None,
+    novel: Novel = Depends(verify_novel_access),
+    user: User = Depends(get_current_user_or_default),
+    db: Session = Depends(get_db),
+):
+    """List copilot sessions for the current novel with pagination."""
+    items, total = list_sessions(
+        db,
+        novel_id=novel_id,
+        user_id=user.id,
+        page=page,
+        page_size=page_size,
+        mode=mode,
+        scope=scope,
+    )
+    total_pages = max(1, -(-total // page_size))
+    return CopilotSessionListResponse(
+        items=[CopilotSessionListItem(**item) for item in items],
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
 
 
 # ---------------------------------------------------------------------------
