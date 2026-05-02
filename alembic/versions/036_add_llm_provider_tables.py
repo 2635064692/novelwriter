@@ -54,7 +54,7 @@ def upgrade() -> None:
     if "model_id" not in copilot_cols:
         with op.batch_alter_table("copilot_sessions") as batch_op:
             batch_op.add_column(
-                sa.Column("model_id", sa.Integer(), sa.ForeignKey("llm_provider_models.id"), nullable=True),
+                sa.Column("model_id", sa.Integer(), sa.ForeignKey("llm_provider_models.id", name="fk_copilot_sessions_model_id"), nullable=True),
             )
             batch_op.create_index("ix_copilot_sessions_model_id", ["model_id"])
 
