@@ -22,14 +22,13 @@ class OutlineChapterDraft(BaseModel):
     suspense_density: str | None = None
     cognitive_twist: int | None = Field(default=None, ge=1, le=5)
 
-    def to_storage(self, *, status: str = "draft") -> dict[str, Any]:
+    def to_storage(self) -> dict[str, Any]:
         return {
             "chapter_number": self.chapter_number,
             "chapter_title": self.chapter_title,
             "brief_text": self.brief_text,
             "suspense_density": self.suspense_density,
             "cognitive_twist": self.cognitive_twist,
-            "status": status,
         }
 
 
@@ -41,15 +40,14 @@ class OutlineVolumeDraft(BaseModel):
     outline_text: str = ""
     chapters: list[OutlineChapterDraft] = Field(default_factory=list)
 
-    def to_storage(self, *, status: str = "draft") -> dict[str, Any]:
+    def to_storage(self) -> dict[str, Any]:
         return {
             "volume_number": self.volume_number,
             "volume_title": self.volume_title,
             "chapter_start": self.chapter_start,
             "chapter_end": self.chapter_end,
             "outline_text": self.outline_text,
-            "status": status,
-            "chapters": [chapter.to_storage(status=status) for chapter in self.chapters],
+            "chapters": [chapter.to_storage() for chapter in self.chapters],
         }
 
 
@@ -82,14 +80,16 @@ def validate_outline_data(data: dict[str, Any]) -> dict[str, Any]:
     return normalize_and_validate_system_data(OUTLINE_DISPLAY_TYPE, data)
 
 
-def volumes_to_outline_data(output: VolumeOutlineOutput) -> dict[str, Any]:
-    volumes = [volume.to_storage(status="draft") for volume in output.volumes]
-    data = {"total_volumes": output.total_volumes or len(volumes), "volumes": volumes}
-    return validate_outline_data(data)
+def volume_to_outline_data(volume: OutlineVolumeDraft | dict[str, Any]) -> dict[str, Any]:
+    if isinstance(volume, OutlineVolumeDraft):
+        return validate_outline_data(volume.to_storage())
+    next_volume = {**volume}
+    next_volume.setdefault("chapters", [])
+    return validate_outline_data(next_volume)
 
 
 def chapters_to_storage(chapters: list[OutlineChapterDraft], *, batch_start: int, batch_end: int) -> list[dict[str, Any]]:
-    by_number = {chapter.chapter_number: chapter.to_storage(status="draft") for chapter in chapters}
+    by_number = {chapter.chapter_number: chapter.to_storage() for chapter in chapters}
     return [by_number.get(number) or empty_chapter_storage(number) for number in range(batch_start, batch_end + 1)]
 
 
@@ -100,7 +100,6 @@ def empty_chapter_storage(chapter_number: int) -> dict[str, Any]:
         "brief_text": "",
         "suspense_density": None,
         "cognitive_twist": None,
-        "status": "draft",
     }
 
 
@@ -118,27 +117,16 @@ def chapter_batches(start: int, end: int, batch_size: int) -> list[tuple[int, in
     return [(number, min(number + batch_size - 1, end)) for number in range(start, end + 1, batch_size)]
 
 
-def select_volumes(data: dict[str, Any], *, volume_number: int | None) -> list[dict[str, Any]]:
-    volumes = list(data.get("volumes") or [])
-    if volume_number is None:
-        return volumes
-    selected = [volume for volume in volumes if volume.get("volume_number") == volume_number]
-    if not selected:
-        raise ValueError(f"Outline volume {volume_number} not found")
-    return selected
-
-
 def find_volume(
     data: dict[str, Any],
     *,
     chapter_number: int | None = None,
     volume_number: int | None = None,
 ) -> dict[str, Any] | None:
-    for volume in data.get("volumes", []):
-        if volume_number is not None and volume.get("volume_number") == volume_number:
-            return volume
-        if chapter_number is not None and volume.get("chapter_start", 0) <= chapter_number <= volume.get("chapter_end", 0):
-            return volume
+    if volume_number is not None and data.get("volume_number") == volume_number:
+        return data
+    if chapter_number is not None and data.get("chapter_start", 0) <= chapter_number <= data.get("chapter_end", 0):
+        return data
     return None
 
 
@@ -162,37 +150,8 @@ def format_chapter_context_lines(chapter: dict[str, Any]) -> list[str]:
     return lines
 
 
-def approve_all(data: dict[str, Any]) -> None:
-    for volume in data.get("volumes", []):
-        approve_volume(volume)
-
-
-def approve_volume(volume: dict[str, Any]) -> None:
-    volume["status"] = "approved"
-    for chapter in volume.get("chapters", []):
-        chapter["status"] = "approved"
-
-
-def require_approved_volume_outlines(volumes: list[dict[str, Any]]) -> None:
-    pending = [str(volume.get("volume_number")) for volume in volumes if volume.get("status") != "approved"]
-    if pending:
-        raise ValueError(f"Approve volume outlines before generating chapter briefs: {', '.join(pending)}")
-
-
 def replace_volume_chapter_drafts(volume: dict[str, Any], chapters: list[dict[str, Any]]) -> None:
     volume["chapters"] = chapters
-    volume["status"] = "draft"
-
-
-def all_volumes_approved(data: dict[str, Any]) -> bool:
-    volumes = data.get("volumes") or []
-    return bool(volumes) and all(_volume_fully_approved(volume) for volume in volumes)
-
-
-def _volume_fully_approved(volume: dict[str, Any]) -> bool:
-    return volume.get("status") == "approved" and all(
-        chapter.get("status") == "approved" for chapter in volume.get("chapters", [])
-    )
 
 
 def clean_optional_text(value: str | None) -> str:

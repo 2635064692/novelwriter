@@ -15,57 +15,44 @@ from app.core.outline_domain import (
     OutlineContext,
     OutlineStep,
     VolumeOutlineOutput,
-    all_volumes_approved,
-    approve_all,
-    approve_volume,
     chapter_batches,
     chapters_to_storage,
     clean_optional_text,
     find_chapter,
     find_volume,
     replace_volume_chapter_drafts,
-    require_approved_volume_outlines,
-    select_volumes,
     validate_outline_data,
     volume_event_payload,
-    volumes_to_outline_data,
+    volume_to_outline_data,
 )
 from app.core.text import PromptKey, get_prompt
 from app.language import resolve_prompt_locale
 from app.models import Chapter, Novel, WorldEntity, WorldRelationship, WorldSystem
 
 
-def get_outline_state(db: Session, novel_id: int) -> WorldSystem | None:
-    return _get_outline_system(db, novel_id, include_draft=True)
+def get_outline_state(db: Session, novel_id: int) -> list[WorldSystem]:
+    return _list_outline_systems(db, novel_id, include_draft=True)
 
 
-def approve_outline_system(db: Session, novel_id: int, *, volume_number: int | None = None) -> WorldSystem:
-    system = _require_outline_system(db, novel_id)
-    data = _outline_data(system)
-    if volume_number is None:
-        approve_all(data)
-    else:
-        volume = find_volume(data, volume_number=volume_number)
-        if volume is None:
-            raise ValueError(f"Outline volume {volume_number} not found")
-        approve_volume(volume)
-    system.data = validate_outline_data(data)
-    if all_volumes_approved(system.data):
+def approve_outline_system(db: Session, novel_id: int, *, volume_number: int | None = None) -> list[WorldSystem]:
+    systems = _select_outline_systems(db, novel_id, volume_number=volume_number, include_draft=True)
+    if not systems:
+        raise ValueError("Outline system not found. Generate volume outlines first.")
+    for system in systems:
+        system.data = validate_outline_data(_outline_data(system))
         system.status = "confirmed"
     db.commit()
-    db.refresh(system)
-    return system
+    for system in systems:
+        db.refresh(system)
+    return systems
 
 
 def fetch_outline_context(db: Session, novel_id: int, chapter_number: int) -> OutlineContext | None:
-    system = _get_outline_system(db, novel_id, include_draft=False)
-    if system is None:
-        return None
-    data = _outline_data(system)
-    volume = find_volume(data, chapter_number=chapter_number)
-    if volume is None:
-        return None
-    return OutlineContext(volume=volume, chapter=find_chapter(volume, chapter_number=chapter_number))
+    for system in _list_outline_systems(db, novel_id, include_draft=False):
+        volume = find_volume(_outline_data(system), chapter_number=chapter_number)
+        if volume is not None:
+            return OutlineContext(volume=volume, chapter=find_chapter(volume, chapter_number=chapter_number))
+    return None
 
 
 async def generate_outline_system_stream(
@@ -139,15 +126,16 @@ async def _generate_volume_outlines(
         user_id=user_id,
         **(llm_config or {}),
     )
-    data = volumes_to_outline_data(output)
-    for volume in data["volumes"]:
-        yield {"type": "volume_outline", "total_volumes": data.get("total_volumes"), **volume_event_payload(volume)}
-    system = _upsert_outline_system(db, int(novel.id), data=data, status="draft")
+    systems: list[WorldSystem] = []
+    for volume in output.volumes:
+        data = volume_to_outline_data(volume)
+        yield {"type": "volume_outline", "total_volumes": output.total_volumes, **volume_event_payload(data)}
+        systems.append(_upsert_outline_volume_system(db, int(novel.id), data=data, status="draft"))
     yield {
         "type": "done",
         "phase": "volume_outline",
-        "system_id": system.id,
-        "volumes_generated": len(data["volumes"]),
+        "system_ids": [system.id for system in systems],
+        "volumes_generated": len(systems),
     }
 
 
@@ -163,13 +151,15 @@ async def _generate_chapter_briefs(
     llm_config: dict | None,
     user_id: int | None,
 ) -> AsyncGenerator[dict[str, Any], None]:
-    system = _require_outline_system(db, int(novel.id))
-    data = _outline_data(system)
-    volumes = select_volumes(data, volume_number=volume_number)
-    require_approved_volume_outlines(volumes)
-    yield {"type": "start", "phase": "chapter_brief", "volumes_to_generate": len(volumes)}
+    systems = _select_outline_systems(db, int(novel.id), volume_number=volume_number, include_draft=True)
+    if not systems:
+        raise ValueError("Outline system not found. Generate volume outlines first.")
+    yield {"type": "start", "phase": "chapter_brief", "volumes_to_generate": len(systems)}
     chapters_generated = 0
-    for volume in volumes:
+    for system in systems:
+        volume = _outline_data(system)
+        if system.status != "confirmed":
+            raise ValueError(f"Approve volume outlines before generating chapter briefs: {volume.get('volume_number')}")
         yield {"type": "volume_start", **volume_event_payload(volume)}
         generated: list[dict[str, Any]] = []
         async for event in _generate_chapter_batches(
@@ -190,14 +180,15 @@ async def _generate_chapter_briefs(
             yield event
         replace_volume_chapter_drafts(volume, generated)
         system.status = "draft"
-        system.data = validate_outline_data(data)
+        system.data = validate_outline_data(volume)
         db.commit()
         yield {"type": "volume_done", "volume_number": volume["volume_number"], "chapter_count": len(generated)}
-    db.refresh(system)
+    for system in systems:
+        db.refresh(system)
     yield {
         "type": "done",
         "phase": "chapter_brief",
-        "volumes_processed": len(volumes),
+        "volumes_processed": len(systems),
         "chapters_generated": chapters_generated,
     }
 
@@ -250,21 +241,21 @@ def _require_novel(db: Session, novel_id: int) -> Novel:
     return novel
 
 
-def _get_outline_system(db: Session, novel_id: int, *, include_draft: bool) -> WorldSystem | None:
+def _list_outline_systems(db: Session, novel_id: int, *, include_draft: bool) -> list[WorldSystem]:
     query = db.query(WorldSystem).filter(
         WorldSystem.novel_id == novel_id,
         WorldSystem.display_type == OUTLINE_DISPLAY_TYPE,
     )
-    if include_draft:
-        return query.order_by((WorldSystem.status == "confirmed").desc(), WorldSystem.id.asc()).first()
-    return query.filter(WorldSystem.status == "confirmed").order_by(WorldSystem.id.asc()).first()
+    if not include_draft:
+        query = query.filter(WorldSystem.status == "confirmed")
+    return query.order_by(WorldSystem.id.asc()).all()
 
 
-def _require_outline_system(db: Session, novel_id: int) -> WorldSystem:
-    system = _get_outline_system(db, novel_id, include_draft=True)
-    if system is None:
-        raise ValueError("Outline system not found. Generate volume outlines first.")
-    return system
+def _select_outline_systems(db: Session, novel_id: int, *, volume_number: int | None, include_draft: bool) -> list[WorldSystem]:
+    systems = _list_outline_systems(db, novel_id, include_draft=include_draft)
+    if volume_number is None:
+        return systems
+    return [system for system in systems if find_volume(_outline_data(system), volume_number=volume_number)]
 
 
 def _outline_data(system: WorldSystem) -> dict[str, Any]:
@@ -318,12 +309,7 @@ def _format_chapter_list(chapters: list[Chapter], *, prompt_locale: str) -> str:
     if not chapters:
         return "（暂无章节）"
     return "\n".join(
-        format_chapter_heading_for_prompt(
-            chapter.chapter_number,
-            chapter.title,
-            locale=prompt_locale,
-            source_chapter_label=getattr(chapter, "source_chapter_label", None),
-        )
+        f"- {format_chapter_heading_for_prompt(chapter.chapter_number, chapter.title, locale=prompt_locale, source_chapter_label=getattr(chapter, 'source_chapter_label', None))}"
         for chapter in chapters
     )
 
@@ -349,21 +335,31 @@ def _format_chapter_summary(chapter: Chapter, *, prompt_locale: str) -> str:
     return f"{heading}\n{(chapter.content or '')[:600]}"
 
 
-def _format_carry(chapters: list[dict[str, Any]]) -> str:
-    if not chapters:
-        return "（无，当前为本卷首批。）"
-    latest = chapters[-1]
-    return f"上一章：第{latest.get('chapter_number')}章 {latest.get('chapter_title') or ''}\n{latest.get('brief_text') or ''}"
+def _format_carry(generated: list[dict[str, Any]]) -> str:
+    if not generated:
+        return "（无）"
+    return "\n".join(f"- 第{chapter['chapter_number']}章：{chapter.get('brief_text') or ''}" for chapter in generated[-5:])
 
 
-def _upsert_outline_system(db: Session, novel_id: int, *, data: dict[str, Any], status: str) -> WorldSystem:
-    system = _get_outline_system(db, novel_id, include_draft=True)
+def _upsert_outline_volume_system(db: Session, novel_id: int, *, data: dict[str, Any], status: str) -> WorldSystem:
+    volume_number = data["volume_number"]
+    system = next(
+        (
+            candidate
+            for candidate in _list_outline_systems(db, novel_id, include_draft=True)
+            if find_volume(_outline_data(candidate), volume_number=volume_number)
+        ),
+        None,
+    )
+    name = f"{OUTLINE_SYSTEM_NAME} - 第{volume_number}卷"
+    if data.get("volume_title"):
+        name = f"{name}：{data['volume_title']}"
     if system is None:
         system = WorldSystem(
             novel_id=novel_id,
-            name=OUTLINE_SYSTEM_NAME,
+            name=name,
             display_type=OUTLINE_DISPLAY_TYPE,
-            description="卷纲与章纲，用于续写时注入结构性上下文。",
+            description="单卷卷纲与章纲，用于续写时注入结构性上下文。",
             data=data,
             constraints=[],
             visibility="active",
@@ -372,6 +368,8 @@ def _upsert_outline_system(db: Session, novel_id: int, *, data: dict[str, Any], 
         )
         db.add(system)
     else:
+        system.name = name
+        system.description = "单卷卷纲与章纲，用于续写时注入结构性上下文。"
         system.data = data
         system.origin = "worldgen" if system.status == "draft" else system.origin
         system.status = status

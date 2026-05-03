@@ -39,9 +39,9 @@ def get_outline_system_state(
     current_user: User = Depends(get_current_user_or_default),
 ):
     del current_user
-    system = get_outline_state(db, novel_id)
-    serialized = WorldSystemResponse.model_validate(system) if system is not None else None
-    return OutlineSystemStateResponse(exists=system is not None, system=serialized)
+    systems = get_outline_state(db, novel_id)
+    serialized = [WorldSystemResponse.model_validate(system) for system in systems]
+    return OutlineSystemStateResponse(exists=bool(systems), systems=serialized)
 
 
 @router.post("/approve", response_model=WorldSystemResponse)
@@ -52,7 +52,7 @@ def approve_outline(
     current_user: User = Depends(get_current_user_or_default),
 ):
     try:
-        system = approve_outline_system(db, novel_id, volume_number=body.volume_number)
+        systems = approve_outline_system(db, novel_id, volume_number=body.volume_number)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail={"code": "outline_not_found", "message": str(exc)}) from exc
     record_event(
@@ -62,7 +62,7 @@ def approve_outline(
         novel_id=novel_id,
         meta={"action": "approve_outline", "volume_number": body.volume_number},
     )
-    return system
+    return systems[0]
 
 
 @router.post("/generate/stream")

@@ -341,7 +341,6 @@ export interface WorldpackImportResponse {
   warnings: WorldpackImportWarning[]
 }
 
-export type OutlineDraftStatus = 'draft' | 'approved'
 export type OutlineGenerateStep = 'volume' | 'chapter'
 
 export interface OutlineChapter {
@@ -350,7 +349,6 @@ export interface OutlineChapter {
   brief_text: string
   suspense_density: string | null
   cognitive_twist: number | null
-  status: OutlineDraftStatus
 }
 
 export interface OutlineVolume {
@@ -359,14 +357,10 @@ export interface OutlineVolume {
   chapter_start: number
   chapter_end: number
   outline_text: string
-  status: OutlineDraftStatus
   chapters: OutlineChapter[]
 }
 
-export interface OutlineSystemData {
-  total_volumes: number | null
-  volumes: OutlineVolume[]
-}
+export type OutlineSystemData = OutlineVolume
 
 export interface OutlineSystem extends Omit<WorldSystem, 'display_type' | 'data'> {
   display_type: 'outline'
@@ -375,7 +369,7 @@ export interface OutlineSystem extends Omit<WorldSystem, 'display_type' | 'data'
 
 export interface OutlineSystemStateResponse {
   exists: boolean
-  system: OutlineSystem | null
+  systems: OutlineSystem[]
 }
 
 export interface OutlineGenerateRequest {
@@ -398,7 +392,7 @@ export type OutlineStreamEvent =
   | { type: 'chapter_brief'; volume_number: number; chapter_number: number; chapter_title: string; brief_text: string; suspense_density: string | null; cognitive_twist: number | null; request_id?: string }
   | { type: 'batch_done'; volume_number: number; batch: number; total_batches: number; request_id?: string }
   | { type: 'volume_done'; volume_number: number; chapter_count: number; request_id?: string }
-  | { type: 'done'; phase: 'volume_outline'; system_id: number; volumes_generated: number; request_id?: string }
+  | { type: 'done'; phase: 'volume_outline'; system_ids: number[]; volumes_generated: number; request_id?: string }
   | { type: 'done'; phase: 'chapter_brief'; volumes_processed: number; chapters_generated: number; request_id?: string }
   | { type: 'error'; message: string; code?: string; request_id?: string }
 

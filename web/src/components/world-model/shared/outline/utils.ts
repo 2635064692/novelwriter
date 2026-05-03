@@ -3,12 +3,6 @@ import { getLlmApiErrorMessage } from '@/lib/llmErrorMessages'
 import type { OutlineChapter, OutlineStreamEvent, OutlineVolume } from '@/types/api'
 import type { ActivityItem, Translate, UiLocale } from './types'
 
-export function statusClassName(status: 'draft' | 'approved') {
-  return status === 'approved'
-    ? 'text-[hsl(var(--color-status-confirmed))]'
-    : 'text-[hsl(var(--color-status-draft))]'
-}
-
 export function appendActivityItem(items: ActivityItem[], tone: ActivityItem['tone'], text: string): ActivityItem[] {
   return [...items.slice(-19), { id: `${Date.now()}-${items.length}`, tone, text }]
 }
@@ -25,7 +19,6 @@ export function volumeFromEvent(event: Extract<OutlineStreamEvent, { type: 'volu
     chapter_start: event.chapter_start,
     chapter_end: event.chapter_end,
     outline_text: event.outline_text,
-    status: 'draft',
     chapters: [],
   }
 }
@@ -37,7 +30,6 @@ export function chapterFromEvent(event: Extract<OutlineStreamEvent, { type: 'cha
     brief_text: event.brief_text,
     suspense_density: event.suspense_density,
     cognitive_twist: event.cognitive_twist,
-    status: 'draft',
   }
 }
 
@@ -58,7 +50,6 @@ export function upsertChapter(volumes: OutlineVolume[], volumeNumber: number, ne
       : [...volume.chapters, next]
     return {
       ...volume,
-      status: 'draft',
       chapters: [...chapters].sort((left, right) => left.chapter_number - right.chapter_number),
     }
   })

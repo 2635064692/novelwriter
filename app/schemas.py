@@ -575,14 +575,6 @@ class _OutlineChapter(BaseModel):
     brief_text: str = ""
     suspense_density: str | None = None
     cognitive_twist: int | None = Field(default=None, ge=1, le=5)
-    status: str = "draft"
-
-    @field_validator("status")
-    @classmethod
-    def _validate_status(cls, v: str) -> str:
-        if v not in {"draft", "approved"}:
-            raise ValueError("status must be draft or approved")
-        return v
 
 
 class _OutlineVolume(BaseModel):
@@ -593,15 +585,7 @@ class _OutlineVolume(BaseModel):
     chapter_start: int = Field(ge=1)
     chapter_end: int = Field(ge=1)
     outline_text: str = ""
-    status: str = "draft"
     chapters: list[_OutlineChapter] = Field(default_factory=list)
-
-    @field_validator("status")
-    @classmethod
-    def _validate_status(cls, v: str) -> str:
-        if v not in {"draft", "approved"}:
-            raise ValueError("status must be draft or approved")
-        return v
 
     @model_validator(mode="after")
     def _validate_range(self) -> "_OutlineVolume":
@@ -610,11 +594,8 @@ class _OutlineVolume(BaseModel):
         return self
 
 
-class _OutlineData(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    total_volumes: int | None = Field(default=None, ge=0)
-    volumes: list[_OutlineVolume] = Field(default_factory=list)
+class _OutlineData(_OutlineVolume):
+    """One outline WorldSystem represents exactly one volume."""
 
 
 _SYSTEM_DATA_ADAPTERS: dict[SystemDisplayType, TypeAdapter] = {
@@ -708,7 +689,7 @@ class OutlineGenerateRequest(BaseModel):
 
 class OutlineSystemStateResponse(BaseModel):
     exists: bool
-    system: WorldSystemResponse | None = None
+    systems: List[WorldSystemResponse] = Field(default_factory=list)
 
 
 class OutlineApproveRequest(BaseModel):
