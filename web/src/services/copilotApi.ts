@@ -81,7 +81,7 @@ const COPILOT_REVIEW_KINDS = ['entities', 'relationships', 'systems'] as const
 const COPILOT_SUGGESTION_RESOURCES = ['entity', 'relationship', 'system'] as const
 const COPILOT_CONTEXT_TABS = ['entities', 'relationships', 'review', 'systems'] as const
 const COPILOT_CONTEXT_SURFACES = ['studio', 'atlas'] as const
-const COPILOT_MODES = ['research', 'current_entity', 'draft_cleanup'] as const
+const COPILOT_MODES = ['research', 'current_entity', 'draft_cleanup', 'outline'] as const
 const COPILOT_SCOPES = ['whole_book', 'current_entity', 'current_tab'] as const
 const COPILOT_APPLY_TYPES = [
   'create_entity',

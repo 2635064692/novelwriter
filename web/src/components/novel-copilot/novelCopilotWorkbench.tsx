@@ -166,6 +166,39 @@ function draftCleanupActions(locale: UiLocale): CopilotQuickActionSpec[] {
   ]
 }
 
+function outlineActions(locale: UiLocale): CopilotQuickActionSpec[] {
+  return [
+    {
+      id: 'generate_volume_outlines',
+      label: t(locale, 'copilot.workbench.outline.generateVolumes.label'),
+      description: t(locale, 'copilot.workbench.outline.generateVolumes.description'),
+      prompt: t(locale, 'copilot.workbench.outline.generateVolumes.prompt'),
+      icon: FileText,
+      iconClassName: 'bg-[hsl(var(--accent)/0.12)] text-accent-foreground ring-1 ring-[hsl(var(--accent)/0.20)]',
+      glowClassName: 'bg-[radial-gradient(circle_at_top_left,var(--nw-copilot-glow-1),transparent_62%)] [mix-blend-mode:var(--nw-copilot-glow-blend)]',
+      layoutClassName: 'sm:col-span-2',
+    },
+    {
+      id: 'generate_chapter_outlines',
+      label: t(locale, 'copilot.workbench.outline.generateChapters.label'),
+      description: t(locale, 'copilot.workbench.outline.generateChapters.description'),
+      prompt: t(locale, 'copilot.workbench.outline.generateChapters.prompt'),
+      icon: Sparkles,
+      iconClassName: 'bg-[hsl(270_80%_65%/0.10)] text-[hsl(270_80%_65%)] ring-1 ring-[hsl(270_80%_65%/0.20)]',
+      glowClassName: 'bg-[radial-gradient(circle_at_top_left,var(--nw-copilot-glow-2),transparent_62%)] [mix-blend-mode:var(--nw-copilot-glow-blend)]',
+    },
+    {
+      id: 'review_outline',
+      label: t(locale, 'copilot.workbench.outline.review.label'),
+      description: t(locale, 'copilot.workbench.outline.review.description'),
+      prompt: t(locale, 'copilot.workbench.outline.review.prompt'),
+      icon: FileSearch,
+      iconClassName: 'bg-[hsl(220_90%_65%/0.10)] text-[hsl(220_90%_65%)] ring-1 ring-[hsl(220_90%_65%/0.20)]',
+      glowClassName: 'bg-[radial-gradient(circle_at_top_left,var(--nw-copilot-glow-3),transparent_62%)] [mix-blend-mode:var(--nw-copilot-glow-blend)]',
+    },
+  ]
+}
+
 export function getCopilotWorkbenchMeta(prefill: CopilotPrefill, displayTitle: string, locale: UiLocale = resolveCurrentUiLocale()): CopilotWorkbenchMeta {
   const scenario = getCopilotScenario(prefill)
   const subject = displayTitle || translateUiMessage(locale, 'copilot.session.title.currentContext')
@@ -194,6 +227,14 @@ export function getCopilotWorkbenchMeta(prefill: CopilotPrefill, displayTitle: s
         composerLabel: t(locale, 'copilot.workbench.draft.composerLabel'),
         composerPlaceholder: t(locale, 'copilot.workbench.draft.composerPlaceholder'),
         quickActions: draftCleanupActions(locale),
+      }
+    case 'outline':
+      return {
+        introEyebrow: t(locale, 'copilot.workbench.outline.eyebrow'),
+        introTitle: t(locale, 'copilot.workbench.outline.title'),
+        composerLabel: t(locale, 'copilot.workbench.outline.composerLabel'),
+        composerPlaceholder: t(locale, 'copilot.workbench.outline.composerPlaceholder'),
+        quickActions: outlineActions(locale),
       }
     default:
       return {

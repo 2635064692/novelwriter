@@ -1,114 +1,98 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+本文件用于为代码智能体（如 Claude Code / Codex CLI / Cursor Agent）提供 **NovelWriter 项目级约束与环境说明**，确保构建、验证与部署流程一致。
 
-## Project Overview
+## 项目概述
 
-NovelWriter (NovWr) is a long-form novel writing engine with world-model-driven generation. It provides an AI Copilot for novel authors to maintain world consistency across long-form fiction. Full-stack: FastAPI backend + React 19 frontend.
+- 本仓库是 **NovelWriter (NovWr)**：面向长篇小说创作的世界模型驱动写作引擎。
+- 技术栈：
+  - 后端：Python 3.13 + FastAPI + SQLAlchemy + Alembic + uv
+  - 前端：React 19 + TypeScript + Vite + Tailwind CSS + React Query
+  - 部署/开发环境：Docker / Docker Compose
+- 主要目录：
+  - `app/`：FastAPI 后端核心代码
+  - `app/api/`：HTTP API 路由
+  - `app/core/`：生成、上下文组装、Copilot、世界模型等核心逻辑
+  - `app/models.py`：SQLAlchemy 数据模型
+  - `alembic/`：数据库迁移
+  - `web/`：React 前端
+  - `tests/`：后端测试
+  - `scripts/`：开发维护脚本
 
-## Build & Run Commands
+## 本地开发环境
 
-### Backend
+- 项目路径：`/home/opensource/python/novelwriter`（WSL2）。
+- 配置文件：项目根目录 `.env`。
+- 前端构建：`web/` 目录下直接执行 `npm run build`。
+- 后端构建：项目根目录执行 `docker compose up -d --build` 重建容器。
+- **禁止在本机安装后端依赖**（`pip install`、`uv sync` 等）；后端环境由 Docker 镜像内管理。
 
-```bash
-# Setup (first time)
-scripts/setup_python_env.sh
-cp .env.example .env  # then edit .env with your OPENAI_API_KEY
+## 推荐工作流
 
-# Run dev server
-scripts/uv_run.sh uvicorn app.main:app --reload --port 8000
+1. 本机修改代码：`/home/opensource/python/novelwriter`。
+2. 前端构建验证：`cd web && npm run build`。
+3. 后端构建验证：`docker compose up -d --build`。
+4. 本机完成 Git 提交。
 
-# Run all tests
-scripts/uv_run.sh pytest tests/
+## 常用 Docker 命令
 
-# Run a single test file
-scripts/uv_run.sh pytest tests/test_ai_client.py
+所有命令均在项目根目录 `/home/opensource/python/novelwriter` 执行。
 
-# Run a single test by name
-scripts/uv_run.sh pytest tests/test_ai_client.py::test_function_name -v
-
-# Lint
-scripts/uv_run.sh ruff check app tests scripts
-
-# CLI tool (selfhost lifecycle management)
-scripts/uv_run.sh novwr --help
-```
-
-### Frontend
-
-```bash
-cd web
-npm install
-npm run dev           # Dev server at http://localhost:5173
-npm run build         # Production build
-npm run lint          # ESLint
-npm run test:run      # Vitest unit tests
-npm run test:e2e      # Playwright E2E
-```
-
-### Docker
+### 启动/重建服务
 
 ```bash
-docker compose up -d  # All services, serves at http://localhost:8000
+docker compose up -d --build
 ```
 
-## Architecture
+默认服务端口：`0.0.0.0:8000`。
 
-### Backend (`app/`)
+### 查看服务状态与日志
 
-**Entry point**: `app/main.py` — FastAPI app with lifespan, CORS, rate limiting, SPA static file serving.
+```bash
+docker compose ps
+docker compose logs --tail=200 scngs
+```
 
-**API routes** (`app/api/`):
-- `auth.py` — JWT auth, user management, GitHub OAuth
-- `novels.py` — Novel CRUD, chapter management, continuation generation (largest module)
-- `lorebook.py` — Lorebook entries with keyword-triggered context injection
-- `world.py` — World model CRUD and generation from text
-- `copilot.py` — Async AI research assistant with tool loop
-- `llm.py` — LLM API configuration and health checks
-- `dashboard.py`, `usage.py` — Statistics and token metering
+### 停止服务
 
-**Core logic** (`app/core/`):
-- `generator.py` — Main text continuation engine
-- `context_assembly.py` — Builds context from recent chapters + lorebook
-- `ai_client.py` — OpenAI-compatible API wrapper (streaming + non-streaming)
-- `lore_manager.py` — Aho-Corasick automaton for keyword matching, priority-based lore injection
-- `continuation_text.py` — Text generation with post-processing
-- `bootstrap.py` — Extracts world info from raw text via LLM
-- `copilot/` — Tool-augmented AI: `tool_loop.py` (orchestrator), `research_tools.py`, `prompting.py`, `suggestions.py`
-- `indexing/` — Window index (sliding window of recent chapters for fast context lookup)
-- `world/` — World model application layer: CRUD, generation, worldpack import
-- `text/` — Language-specific text processing: `zh.py` (Chinese), `en.py`, `ja.py`, `ko.py`
+```bash
+docker compose down
+```
 
-**Models** (`app/models.py`): SQLAlchemy models — `Novel`, `Chapter`, `Outline`, `Continuation`, `LoreEntry`/`LoreKey`, `WorldEntity`/`WorldEntityAttribute`/`WorldRelationship`/`WorldSystem`, `CopilotSession`/`CopilotRun`, `User`, `TokenUsage`, etc.
+## 构建与验证
 
-**Config** (`app/config.py`): Pydantic Settings with `.env` support. Two deployment modes:
-- `selfhost` — Single-user, no auth required, `.env` overrides OS env vars
-- `hosted` — Multi-tenant, JWT required, OS env overrides `.env` (security)
+### 后端（Docker）
 
-**Database** (`app/database.py`): SQLite (dev) or PostgreSQL (prod). WAL mode for SQLite. Migrations in `alembic/`.
+后端 Python 代码验收**必须在 Docker 容器内**通过 `scripts/` 内的脚本执行，不得在本机直接运行。
 
-### Frontend (`web/src/`)
+```bash
+# Lint 检查
+docker exec -i novelwriter-scngs-1 bash -lc 'cd /app && scripts/uv_run.sh ruff check app tests scripts'
 
-React 19 + TypeScript + Tailwind CSS + React Query. Key areas:
-- `pages/` — Route components (Studio, Atlas, Library, etc.)
-- `components/` — Reusable UI (uses Radix UI + @xyflow/react for world graph visualization)
-- `hooks/` — Custom React hooks
-- `services/` — API client layer
+# 单元测试
+docker exec -i novelwriter-scngs-1 bash -lc 'cd /app && scripts/uv_run.sh pytest tests/ -m "not contract"'
 
-### Key Data Flow
+# 类型检查
+docker exec -i novelwriter-scngs-1 bash -lc 'cd /app && scripts/uv_run.sh pyright app/'
+```
 
-1. **Continuation generation**: User prompt → `context_assembly.py` (recent chapters + lorebook) → `generator.py` → `ai_client.py` → LLM → `continuation_text.py` (post-processing)
-2. **Lorebook injection**: Chapter text → `lore_manager.py` (Aho-Corasick keyword match) → matched entries sorted by priority → injected into context
-3. **Copilot research**: User question → `copilot/tool_loop.py` → tool calls (read chapters, search lorebook) → synthesized answer
-4. **World bootstrap**: Raw text → chunking → LLM extraction → `WorldEntity`/`WorldRelationship` records
+验收失败时，必须根据错误输出修复代码后重新执行，直至全部通过。
 
-## Key Conventions
+### 前端（React/Vite）
 
-- **Python**: 3.13, managed by `uv` (version pinned in `pyproject.toml`). All backend commands go through `scripts/uv_run.sh`.
-- **Linting**: `ruff` with config in `ruff.toml`
-- **Tests**: `pytest` with autouse fixtures in `conftest.py` that force selfhost mode and bypass auth. Test markers: `contract` (deferred), `e2e_llm` (real provider). Contract tests excluded by default (`-m 'not contract'`).
-- **Language support**: Multi-language text processing (zh/en/ja/ko) via `app/core/text/` and `app/language.py`. Language code normalization throughout.
-- **Novel.language mutation**: If `Novel.language` is changed, must call `invalidate_novel_language_caches()` to clear lore automaton cache and advance window index revision.
-- **LoreEntry priority**: Lower number = higher priority (1 = protagonist).
-- **World entities**: `WorldEntity` has `status` (draft/approved), `origin` (manual/bootstrap/worldpack/worldgen), `visibility` (active/hidden).
-- **Internal project codename**: "SCNGS" appears in env vars and log messages.
+前端构建直接在 WSL 本机 `web/` 目录执行：
+
+```bash
+cd /home/opensource/python/novelwriter/web
+npm run build
+```
+
+## 代码约定与注意事项
+
+- 后端所有常规命令通过 `docker exec 中 scripts/uv_run.sh` 调用，避免绕过项目固定的 uv 环境。
+- Ruff 配置位于 `ruff.toml`。
+- Pytest 默认排除 `contract` 标记测试（见 `pyproject.toml` 的 `addopts`）。
+- `e2e_llm` 标记测试会访问真实 LLM Provider，除非用户明确要求并提供环境配置，否则不要默认执行。
+- `Novel.language` 发生变更时，必须调用 `invalidate_novel_language_caches()`，清理 lore automaton cache 并推进 window index revision。
+- `LoreEntry` 的 priority 数字越小优先级越高（`1` 最高）。
+- 项目内部历史代号 `SCNGS` 仍可能出现在环境变量、日志和 Compose 服务名中。

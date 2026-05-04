@@ -908,7 +908,7 @@ class WorldpackImportResponse(BaseModel):
 # Copilot Schemas
 # =============================================================================
 
-CopilotMode = Literal["research", "current_entity", "draft_cleanup"]
+CopilotMode = Literal["research", "current_entity", "draft_cleanup", "outline"]
 CopilotScope = Literal["whole_book", "current_entity", "current_tab"]
 CopilotContextTab = Literal["entities", "relationships", "review", "systems"]
 CopilotContextSurface = Literal["studio", "atlas"]

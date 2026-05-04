@@ -36,7 +36,6 @@ import { useWorldSystems } from '@/hooks/world/useSystems'
 import { LABELS } from '@/constants/labels'
 import { NovelCopilotDrawer } from '@/components/novel-copilot/NovelCopilotDrawer'
 import { useNovelCopilot } from '@/components/novel-copilot/NovelCopilotContext'
-import { buildWholeBookCopilotLaunchArgs } from '@/components/novel-copilot/novelCopilotLauncher'
 import { useAtlasCopilotTargetNavigation } from '@/components/novel-copilot/useCopilotTargetNavigation'
 import { MIN_NOVEL_SHELL_DRAWER_WIDTH } from '@/components/novel-shell/novelShellChromeState'
 import { useUiLocale } from '@/contexts/UiLocaleContext'
@@ -183,12 +182,12 @@ export function NovelAtlasPage() {
   const handleToggleCopilot = useCallback(() => {
     if (copilotIsOpen) {
       closeCopilot()
-    } else if (copilot.sessions.length > 0) {
+    } else if (copilot.sessions.length > 0 || copilot.showCategoryPicker) {
       copilot.reopenDrawer()
     } else {
-      copilot.openDrawer(...buildWholeBookCopilotLaunchArgs(routeState))
+      copilot.openCategoryPicker()
     }
-  }, [copilotIsOpen, copilot, closeCopilot, routeState])
+  }, [copilotIsOpen, copilot, closeCopilot])
 
   if (invalidNovelId) return <div className="p-4 text-muted-foreground">Novel not found</div>
 

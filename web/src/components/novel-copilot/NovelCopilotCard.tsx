@@ -1,4 +1,4 @@
-import { BookOpen, ChevronRight, Globe, Search, Sparkles } from 'lucide-react'
+import { BookOpen, ChevronRight, Globe, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -6,14 +6,10 @@ import { WorldGenerationDialog } from '@/components/world-model/shared/WorldGene
 import { OutlineManagementDialog } from '@/components/world-model/shared/OutlineManagementDialog'
 import { BootstrapPanel } from '@/components/world-model/shared/BootstrapPanel'
 import { useUiLocale } from '@/contexts/UiLocaleContext'
-import { useNovelCopilot } from './NovelCopilotContext'
 import { useOptionalNovelShell } from '@/components/novel-shell/NovelShellContext'
-import { buildWholeBookCopilotLaunchArgs } from './novelCopilotLauncher'
-import { useNovelWindowIndex } from '@/hooks/novel/useNovelWindowIndex'
 import { useWorldEntities } from '@/hooks/world/useEntities'
 import { useWorldRelationships } from '@/hooks/world/useRelationships'
 import { useWorldSystems } from '@/hooks/world/useSystems'
-import { getWindowIndexCopilotStatusMeta } from '@/lib/windowIndexStatus'
 import { setAtlasStudioOriginSearchParams } from '@/components/novel-shell/NovelShellRouteState'
 
 function ActionStrip({
@@ -25,7 +21,7 @@ function ActionStrip({
   compact = false,
   current = false,
 }: {
-  icon: typeof Search
+  icon: typeof Globe
   title: string
   description: string
   onClick?: () => void
@@ -91,14 +87,11 @@ export function NovelCopilotCard({
   const { t } = useUiLocale()
   const navigate = useNavigate()
   const location = useLocation()
-  const copilot = useNovelCopilot()
   const shell = useOptionalNovelShell()
-  const { data: indexState } = useNovelWindowIndex(novelId)
   const { data: entities = [] } = useWorldEntities(novelId)
   const { data: relationships = [] } = useWorldRelationships(novelId)
   const { data: systems = [] } = useWorldSystems(novelId)
   const compact = variant === 'compact'
-  const indexStatusMeta = getWindowIndexCopilotStatusMeta(indexState)
   const atlasSummary = entities.length > 0 || relationships.length > 0 || systems.length > 0
     ? t('copilot.card.atlasSummary', {
       entities: entities.length,
@@ -128,15 +121,6 @@ export function NovelCopilotCard({
 
   return (
     <div className={cn('space-y-1.5', className)} data-testid="world-build-panel" data-variant={variant}>
-      <ActionStrip
-        icon={Search}
-        title={t('copilot.card.openWholeBook')}
-        description={indexStatusMeta.text}
-        onClick={() => copilot.openDrawer(...buildWholeBookCopilotLaunchArgs(shell?.routeState))}
-        testId="novel-copilot-trigger"
-        compact={compact}
-      />
-
       <ActionStrip
         icon={Globe}
         title={t('studio.rail.atlasTitle')}

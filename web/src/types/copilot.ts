@@ -4,7 +4,7 @@ import {
   readDocumentUiLocale,
 } from '@/lib/uiLocale'
 
-export type CopilotMode = 'research' | 'current_entity' | 'draft_cleanup'
+export type CopilotMode = 'research' | 'current_entity' | 'draft_cleanup' | 'outline'
 export type CopilotScope = 'whole_book' | 'current_entity' | 'current_tab'
 export type CopilotContextTab = 'entities' | 'relationships' | 'review' | 'systems'
 export type CopilotContextSurface = 'studio' | 'atlas'
@@ -73,11 +73,18 @@ export type CopilotDraftCleanupPrefill = {
   context: CopilotDraftCleanupContext
 }
 
+export type CopilotOutlinePrefill = {
+  mode: 'outline'
+  scope: 'whole_book'
+  context?: CopilotWholeBookContext
+}
+
 export type CopilotPrefill =
   | CopilotWholeBookPrefill
   | CopilotCurrentEntityPrefill
   | CopilotCurrentTabResearchPrefill
   | CopilotDraftCleanupPrefill
+  | CopilotOutlinePrefill
 
 export interface CopilotSessionIdentityContext {
   entity_id?: number
