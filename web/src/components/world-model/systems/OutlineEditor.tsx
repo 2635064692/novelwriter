@@ -269,7 +269,6 @@ function ChapterRow({ chapter, expanded, onToggle, onUpdate, onDelete }: {
 }) {
   const { t } = useUiLocale()
   const contentId = `chapter-content-${chapter.chapter_number}`
-  const lines = (chapter.brief_text || '').split('\n').filter(line => line.trim())
   const [hovered, setHovered] = useState(false)
 
   return (
@@ -324,29 +323,24 @@ function ChapterRow({ chapter, expanded, onToggle, onUpdate, onDelete }: {
       </div>
       {expanded ? (
         <div id={contentId} className="pb-3.5 px-5 pl-[54px] space-y-3">
-          <InlineEdit
-            value={chapter.chapter_title ?? ''}
-            onSave={v => onUpdate({ chapter_title: v })}
-            className="text-[13px] font-medium"
-            placeholder={t('worldModel.outline.chapterFallback', { chapter: chapter.chapter_number })}
-          />
-          {lines.length > 0 ? (
-            <ol className="m-0 list-outside list-decimal space-y-1 pl-4 text-[13px] leading-relaxed text-foreground">
-              {lines.map((line, i) => (
-                <li key={i}>{line.replace(/^\d+\.\s*/, '')}</li>
-              ))}
-            </ol>
-          ) : (
-            <div className="text-[13px] text-muted-foreground">{t('worldModel.outline.chapterBriefEmpty')}</div>
-          )}
-          <InlineEdit
-            value={chapter.brief_text ?? ''}
-            onSave={v => onUpdate({ brief_text: v })}
-            multiline
-            variant="glass"
-            className="text-[13px] text-foreground"
-            placeholder={t('worldModel.outline.chapterBriefEmpty')}
-          />
+          <div>
+            <InlineEdit
+              value={chapter.chapter_title ?? ''}
+              onSave={v => onUpdate({ chapter_title: v })}
+              className="text-[13px] font-medium"
+              placeholder={t('worldModel.outline.chapterFallback', { chapter: chapter.chapter_number })}
+            />
+          </div>
+          <div>
+            <InlineEdit
+              value={chapter.brief_text ?? ''}
+              onSave={v => onUpdate({ brief_text: v })}
+              multiline
+              variant="glass"
+              className="text-[13px] text-foreground"
+              placeholder={t('worldModel.outline.chapterBriefEmpty')}
+            />
+          </div>
           {(chapter.suspense_density || chapter.cognitive_twist) ? (
             <div className="text-[11px] text-muted-foreground">
               {t('worldModel.outline.chapterMeta', {
