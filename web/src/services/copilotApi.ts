@@ -90,6 +90,8 @@ const COPILOT_APPLY_TYPES = [
   'update_relationship',
   'create_system',
   'update_system',
+  'update_outline_volume',
+  'update_outline_chapters',
 ] as const
 const LEGACY_ATLAS_STAGE_TABS = ['entities', 'relationships', 'systems'] as const
 
@@ -226,6 +228,8 @@ function parseCopilotSuggestionApplyAction(value: unknown): CopilotSuggestionApp
         data,
       } as CopilotSuggestionApplyAction
     case 'update_system':
+    case 'update_outline_volume':
+    case 'update_outline_chapters':
       return {
         type,
         system_id: readOptionalNumber(body.system_id, 'copilot suggestion apply action.system_id') ?? invalidResponseShape('copilot suggestion apply action.system_id'),

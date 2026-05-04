@@ -25,6 +25,9 @@ _QUICK_ACTION_FOCUS_ZH: dict[str, str] = {
     "review_drafts": "审查草稿中最值得优先处理的条目。",
     "normalize_terms": "检查草稿中的命名一致性并提出统一建议。",
     "fill_missing_fields": "找出草稿中缺失的关键字段并给出补全建议。",
+    "generate_volume_outlines": "重点生成或补全卷纲结构，使用 update_outline_volume 建议写入卷级大纲字段。",
+    "generate_chapter_outlines": "重点生成或补全章纲列表，使用 update_outline_chapters 建议写入章节大纲。",
+    "review_outline": "重点审查卷纲/章纲的主线、节奏、转折和伏笔缺口。",
 }
 _QUICK_ACTION_FOCUS_EN: dict[str, str] = {
     "scan_world_gaps": "Focus on world details, organizations, or concepts that chapters mention repeatedly but the world model still does not cover.",
@@ -38,6 +41,9 @@ _QUICK_ACTION_FOCUS_EN: dict[str, str] = {
     "review_drafts": "Review the draft rows that are most worth handling first.",
     "normalize_terms": "Check naming consistency in drafts and suggest normalization.",
     "fill_missing_fields": "Find key missing draft fields and propose concrete completions.",
+    "generate_volume_outlines": "Focus on generating or completing volume-outline structure. Use update_outline_volume suggestions for volume-level outline fields.",
+    "generate_chapter_outlines": "Focus on generating or completing chapter-outline lists. Use update_outline_chapters suggestions for chapter briefs.",
+    "review_outline": "Focus on reviewing plotline, pacing, turns, and foreshadowing gaps in volume/chapter outlines.",
 }
 
 _TASK_INTENT_HINTS = (
@@ -90,12 +96,14 @@ _FOCUS_LABELS_ZH = {
     "entity": "实体补完",
     "relationship": "关系梳理",
     "draft": "草稿整理",
+    "outline": "大纲探究",
 }
 _FOCUS_LABELS_EN = {
     "whole_book": "Whole-book research",
     "entity": "Entity completion",
     "relationship": "Relationship review",
     "draft": "Draft cleanup",
+    "outline": "Outline research",
 }
 _FOCUS_CAPABILITIES_ZH: dict[str, list[str]] = {
     "whole_book": [
@@ -118,6 +126,11 @@ _FOCUS_CAPABILITIES_ZH: dict[str, list[str]] = {
         "帮助检查命名统一、缺失字段和弱候选",
         "在你明确要求时生成草稿整理建议卡",
     ],
+    "outline": [
+        "分析当前卷纲/章纲结构",
+        "指出主线、节奏、转折与伏笔缺口",
+        "在证据充分时生成大纲建议卡",
+    ],
 }
 _FOCUS_CAPABILITIES_EN: dict[str, list[str]] = {
     "whole_book": [
@@ -139,6 +152,11 @@ _FOCUS_CAPABILITIES_EN: dict[str, list[str]] = {
         "Explain what this draft-cleanup workspace can help with",
         "Check naming consistency, missing fields, and weak candidates",
         "Generate draft-cleanup suggestion cards when you explicitly ask for them",
+    ],
+    "outline": [
+        "Analyze the current volume/chapter outline structure",
+        "Identify plotline, pacing, turn, and foreshadowing gaps",
+        "Generate outline suggestion cards when evidence is sufficient",
     ],
 }
 _PROFILE_INSTRUCTIONS_ZH: dict[str, str] = {
@@ -196,6 +214,12 @@ _FOCUS_INSTRUCTIONS_ZH: dict[str, str] = {
         "你的 suggestions 里的 target_id 必须指向草稿行的 ID。"
         "不要创建新实体（create_entity），只更新现有草稿。"
     ),
+    "outline": (
+        "用户正在进行大纲探究。围绕卷纲、章纲、主线推进、关键转折、章节范围和节奏结构进行分析。"
+        "suggestions 应优先使用 update_outline_volume 或 update_outline_chapters。"
+        "卷纲内容写入 delta.outline_text；章纲内容写入 delta.chapters。"
+        "不要把大纲正文只写入 system.description。review_outline_issue 仅用于不可直接采纳的审查意见。"
+    ),
 }
 _FOCUS_INSTRUCTIONS_EN: dict[str, str] = {
     "whole_book": (
@@ -216,6 +240,11 @@ _FOCUS_INSTRUCTIONS_EN: dict[str, str] = {
         "The user is cleaning up drafts. Review draft rows and propose improvements. "
         "Focus on naming normalization, missing-field completion, and weak-candidate marking. "
         "Only make non-destructive local edit suggestions against existing draft rows. Do not suggest delete, merge, or split operations. target_id values in suggestions must point to draft-row IDs, and you must not create new entities in this mode."
+    ),
+    "outline": (
+        "The user is researching outlines. Analyze volume outlines, chapter briefs, plot progression, key turns, chapter ranges, and pacing structure. "
+        "Suggestions should primarily use update_outline_volume or update_outline_chapters. Put volume-outline content in delta.outline_text and chapter briefs in delta.chapters. "
+        "Do not put outline text only into system.description. Use review_outline_issue only for review notes that are not directly applicable."
     ),
 }
 _FOCUS_WORKFLOW_HINTS_ZH: dict[str, str] = {
@@ -244,6 +273,13 @@ _FOCUS_WORKFLOW_HINTS_ZH: dict[str, str] = {
         "3. 用 find(query=<草稿名称>, scope='story_text') 搜索正文证据来补全草稿\n"
         "4. 用 read(target_refs=[...]) 读取草稿行的完整状态\n"
         "5. 基于证据对草稿提出命名统一、字段补全建议"
+    ),
+    "outline": (
+        "1. 先浏览 auto-preload 中的 outline systems 和全书薄概览\n"
+        "2. 用 find(query=<卷名/关键剧情>, scope='all') 搜索大纲证据\n"
+        "3. 用 read(target_refs=[{type:'system', id:<大纲体系ID>}]) 读取当前大纲结构\n"
+        "4. 用 open(pack_id) 展开关键证据\n"
+        "5. 基于证据输出 update_outline_volume 或 update_outline_chapters 建议"
     ),
 }
 _FOCUS_WORKFLOW_HINTS_EN: dict[str, str] = {
@@ -420,7 +456,7 @@ $evidence_text
   "cited_evidence_indices": [0, 1],
   "suggestions": [
     {
-      "kind": "update_entity | create_entity | update_relationship | create_relationship | update_system | create_system",
+      "kind": "update_entity | create_entity | update_relationship | create_relationship | update_system | create_system | update_outline_volume | update_outline_chapters | review_outline_issue",
       "title": "建议标题",
       "summary": "一句话说明",
       "cited_evidence_indices": [0],
@@ -442,6 +478,20 @@ $evidence_text
         "display_type": "（可选，system）",
         "attributes": [
           {"key": "属性名", "surface": "可见值"}
+        ],
+        "volume_number": "（可选，update_outline_volume）",
+        "volume_title": "（可选，update_outline_volume）",
+        "chapter_start": "（可选，update_outline_volume）",
+        "chapter_end": "（可选，update_outline_volume）",
+        "outline_text": "（可选，update_outline_volume）",
+        "chapters": [
+          {
+            "chapter_number": "章号",
+            "chapter_title": "章名",
+            "brief_text": "章纲正文",
+            "suspense_density": "悬念密度",
+            "cognitive_twist": "1-5"
+          }
         ]
       }
     }
@@ -457,6 +507,7 @@ $evidence_text
 6. attributes 数组用于建议新增或更新实体属性（key-value对）
 7. 如果 create_relationship 涉及尚未存在的新实体，必须同时生成对应的 create_entity 建议，并在关系 delta 里填写 source_name / target_name
 8. 实体不只包括人物，也包括势力、组织、地点、物件、概念、规则等；不要把所有新实体默认写成人物
+9. 大纲建议必须指向 display_type=outline 的 system；卷纲使用 update_outline_volume，章纲使用 update_outline_chapters
 """
             ),
             "tool_loop": Template(
@@ -490,7 +541,7 @@ $workflow_hint
   "cited_evidence_indices": [],
   "suggestions": [
     {
-      "kind": "update_entity | create_entity | update_relationship | create_relationship | update_system | create_system",
+      "kind": "update_entity | create_entity | update_relationship | create_relationship | update_system | create_system | update_outline_volume | update_outline_chapters | review_outline_issue",
       "title": "建议标题",
       "summary": "一句话说明",
       "cited_evidence_indices": [],
@@ -512,6 +563,20 @@ $workflow_hint
         "display_type": "（可选，system）",
         "attributes": [
           {"key": "属性名", "surface": "可见值"}
+        ],
+        "volume_number": "（可选，update_outline_volume）",
+        "volume_title": "（可选，update_outline_volume）",
+        "chapter_start": "（可选，update_outline_volume）",
+        "chapter_end": "（可选，update_outline_volume）",
+        "outline_text": "（可选，update_outline_volume）",
+        "chapters": [
+          {
+            "chapter_number": "章号",
+            "chapter_title": "章名",
+            "brief_text": "章纲正文",
+            "suspense_density": "悬念密度",
+            "cognitive_twist": "1-5"
+          }
         ]
       }
     }
@@ -527,6 +592,7 @@ $workflow_hint
 6. attributes 数组用于建议新增或更新实体属性（key-value对）
 7. 如果 create_relationship 涉及尚未存在的新实体，必须同时生成对应的 create_entity 建议，并在关系 delta 里填写 source_name / target_name
 8. 实体不只包括人物，也包括势力、组织、地点、物件、概念、规则等；不要把所有新实体默认写成人物
+9. 大纲建议必须指向 display_type=outline 的 system；卷纲使用 update_outline_volume，章纲使用 update_outline_chapters
 """
             ),
         },
@@ -666,7 +732,7 @@ $evidence_text
   "cited_evidence_indices": [0, 1],
   "suggestions": [
     {
-      "kind": "update_entity | create_entity | update_relationship | create_relationship | update_system | create_system",
+      "kind": "update_entity | create_entity | update_relationship | create_relationship | update_system | create_system | update_outline_volume | update_outline_chapters | review_outline_issue",
       "title": "Suggestion title",
       "summary": "One-sentence explanation",
       "cited_evidence_indices": [0],
@@ -736,7 +802,7 @@ $workflow_hint
   "cited_evidence_indices": [],
   "suggestions": [
     {
-      "kind": "update_entity | create_entity | update_relationship | create_relationship | update_system | create_system",
+      "kind": "update_entity | create_entity | update_relationship | create_relationship | update_system | create_system | update_outline_volume | update_outline_chapters | review_outline_issue",
       "title": "Suggestion title",
       "summary": "One-sentence explanation",
       "cited_evidence_indices": [],

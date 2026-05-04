@@ -179,6 +179,16 @@ export type CopilotSuggestionApplyAction =
       system_id: number
       data: Record<string, unknown>
     }
+  | {
+      type: 'update_outline_volume'
+      system_id: number
+      data: Record<string, unknown>
+    }
+  | {
+      type: 'update_outline_chapters'
+      system_id: number
+      data: Record<string, unknown>
+    }
 
 export interface CopilotSuggestion {
   suggestion_id: string

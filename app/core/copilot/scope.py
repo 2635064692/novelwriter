@@ -32,7 +32,7 @@ from app.models import (
 logger = logging.getLogger(__name__)
 
 CopilotRuntimeProfile = Literal["focused_research", "draft_governance", "broad_exploration"]
-CopilotFocusVariant = Literal["entity", "relationship", "draft", "whole_book"]
+CopilotFocusVariant = Literal["entity", "relationship", "draft", "whole_book", "outline"]
 
 MAX_EVIDENCE_ITEMS = 15
 MAX_SCOPE_ENTITIES = 80
@@ -111,6 +111,8 @@ def derive_focus_variant(mode: str, scope: str, context: dict | None) -> Copilot
     """Derive the detailed workbench focus within the runtime profile."""
     if mode == "draft_cleanup":
         return "draft"
+    if mode == "outline":
+        return "outline"
     if scope == "whole_book":
         return "whole_book"
     if context and context.get("tab") == "relationships":
