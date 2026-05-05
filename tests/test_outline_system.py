@@ -266,7 +266,8 @@ async def test_continuation_prompt_injects_matching_confirmed_outline_volume(db,
         context_chapters=2,
     )
 
-    assert "<outline_context>" in prompt
+    assert "<outline>" in prompt
+    assert "<outline_context>" not in prompt
     assert "第2卷卷纲" in prompt
     assert "本章完成终局" in prompt
     assert "第1卷卷纲" not in prompt
