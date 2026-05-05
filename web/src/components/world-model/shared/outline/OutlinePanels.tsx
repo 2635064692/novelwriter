@@ -4,7 +4,6 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import type { OutlineChapter, OutlineVolume } from '@/types/api'
 import type { ActivityItem, Translate } from './types'
-import { statusClassName } from './utils'
 
 export function ActivityPanel({ activity, t }: { activity: ActivityItem[]; t: Translate }) {
   return (
@@ -79,7 +78,6 @@ function VolumeListItem({ volume, active, onSelect, t }: { volume: OutlineVolume
       <div className='flex-1 min-w-0'>
         <div className='flex items-center gap-2'>
           <span className='truncate text-sm font-medium text-foreground'>{volume.volume_title || t('worldModel.outline.volumeFallback', { volume: volume.volume_number })}</span>
-          <span className={cn('text-[11px]', statusClassName(volume.status))}>{volume.status === 'approved' ? t('worldModel.outline.statusApproved') : t('worldModel.outline.statusDraft')}</span>
         </div>
         <div className='mt-1 text-[11px] text-muted-foreground'>
           {t('worldModel.outline.volumeRangeShort', { start: volume.chapter_start, end: volume.chapter_end })} · {t('worldModel.outline.chapterCount', { count: volume.chapters.length })}
@@ -116,10 +114,7 @@ function VolumeDetailHeader({ selected, approvePending, onApprove, t }: { select
     <div className='border-b border-[var(--nw-glass-border)] px-5 py-4'>
       <div className='flex flex-wrap items-start gap-3'>
         <div className='min-w-0 flex-1'>
-          <div className='flex items-center gap-2'>
-            <div className='truncate text-lg font-semibold text-foreground'>{selected.volume_title || t('worldModel.outline.volumeFallback', { volume: selected.volume_number })}</div>
-            <span className={cn('text-xs', statusClassName(selected.status))}>{selected.status === 'approved' ? t('worldModel.outline.statusApproved') : t('worldModel.outline.statusDraft')}</span>
-          </div>
+          <div className='truncate text-lg font-semibold text-foreground'>{selected.volume_title || t('worldModel.outline.volumeFallback', { volume: selected.volume_number })}</div>
           <div className='mt-1 text-sm text-muted-foreground'>{t('worldModel.outline.volumeRange', { start: selected.chapter_start, end: selected.chapter_end })}</div>
         </div>
         <Button type='button' size='sm' variant='outline' className='h-8 border-[var(--nw-glass-border)] bg-transparent hover:bg-[var(--nw-glass-bg-hover)]' disabled={approvePending} onClick={() => onApprove(selected.volume_number)}>
@@ -157,7 +152,6 @@ function ChapterCard({ chapter, t }: { chapter: OutlineChapter; t: Translate }) 
       <div className='flex flex-wrap items-center gap-2'>
         <div className='text-sm font-medium text-foreground'>{chapter.chapter_title || t('worldModel.outline.chapterFallback', { chapter: chapter.chapter_number })}</div>
         <span className='text-[11px] text-muted-foreground'>#{chapter.chapter_number}</span>
-        <span className={cn('text-[11px]', statusClassName(chapter.status))}>{chapter.status === 'approved' ? t('worldModel.outline.statusApproved') : t('worldModel.outline.statusDraft')}</span>
       </div>
       <div className='mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground'>{chapter.brief_text || t('worldModel.outline.chapterBriefEmpty')}</div>
       {(chapter.suspense_density || chapter.cognitive_twist) ? (

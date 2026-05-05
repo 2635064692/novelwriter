@@ -2,11 +2,13 @@ import { registerUiMessages, type UiMessageValue, type UiMessageParams } from '@
 
 export const copilotZhMessages = {
   'copilot.scope.wholeBook': '全书研究',
+  'copilot.scope.outline': '大纲研究',
   'copilot.scope.draftContext': '草稿上下文',
   'copilot.scope.relationshipContext': '关系上下文',
   'copilot.scope.entityContext': '实体上下文',
 
   'copilot.session.title.wholeBook': '全书探索',
+  'copilot.session.title.outline': '大纲探究',
   'copilot.session.title.draftCleanup': '草稿整理',
   'copilot.session.title.relationshipContext': '关系上下文',
   'copilot.session.title.entityContext': '实体补完',
@@ -17,6 +19,14 @@ export const copilotZhMessages = {
 
   'copilot.drawer.badge': 'Novel Copilot',
   'copilot.drawer.sessionsCount': ({ count }) => `${String(count ?? 0)} 个会话`,
+
+  'copilot.category.title': '选择工作区',
+  'copilot.category.subtitle': '选择一个工作区开始 AI 辅助创作',
+  'copilot.category.wholeBook.title': '全书探索',
+  'copilot.category.wholeBook.description': '跨章节查找设定、人物与线索，从设定生成草稿，检索实体关联',
+  'copilot.category.outline.title': '大纲探究',
+  'copilot.category.outline.description': '基于已有章节内容，生成、优化并审核卷纲与章纲结构',
+
   'copilot.drawer.currentWorkspace': ({ title }) => `当前工作区：${String(title ?? '')}`,
   'copilot.drawer.workspace': '工作区',
   'copilot.drawer.currentRequest': '当前请求',
@@ -66,6 +76,7 @@ export const copilotZhMessages = {
   'copilot.suggestion.kind.entity': '实体',
   'copilot.suggestion.kind.relationship': '关系',
   'copilot.suggestion.kind.system': '体系',
+  'copilot.suggestion.kind.outline': '大纲',
   'copilot.suggestion.source.chapterExcerpt': '章节片段',
   'copilot.suggestion.source.worldEntity': '设定条目',
   'copilot.suggestion.source.worldRelationship': '关系设定',
@@ -190,6 +201,20 @@ export const copilotZhMessages = {
   'copilot.workbench.draft.fill.description': '找出描述过短或字段缺失的草稿',
   'copilot.workbench.draft.fill.prompt': '请找出当前草稿中字段缺失、描述过短或明显可补完的条目，并按价值排序。',
 
+  'copilot.workbench.outline.eyebrow': '大纲工作台',
+  'copilot.workbench.outline.title': '基于已有章节内容，生成卷级大纲、细化章纲，并审核大纲结构与节奏。',
+  'copilot.workbench.outline.composerLabel': '补充要求',
+  'copilot.workbench.outline.composerPlaceholder': '输入补充要求，例如"重点关注势力线的分卷节奏"',
+  'copilot.workbench.outline.generateVolumes.label': '生成卷纲',
+  'copilot.workbench.outline.generateVolumes.description': '从已有章节内容自动生成卷级大纲结构',
+  'copilot.workbench.outline.generateVolumes.prompt': '请基于当前全部章节内容，分析情节走向，生成合理的卷级大纲结构。每卷应有明确主题、核心冲突和关键转折点。',
+  'copilot.workbench.outline.generateChapters.label': '生成章纲',
+  'copilot.workbench.outline.generateChapters.description': '在卷纲基础上细化每章的情节节点与节奏',
+  'copilot.workbench.outline.generateChapters.prompt': '请基于卷纲结构，逐章细化大纲内容，确保章间情节衔接紧密、节奏合理。',
+  'copilot.workbench.outline.review.label': '大纲审核',
+  'copilot.workbench.outline.review.description': '审查大纲一致性、节奏弧线与伏笔分布',
+  'copilot.workbench.outline.review.prompt': '请审核当前大纲结构的一致性和完整性，重点关注：卷间节奏弧线是否合理、伏笔分布是否均匀、角色动线是否连贯。',
+
   'copilot.errors.pollRunNotFound': '这轮研究已失效，请重新发起。',
   'copilot.errors.connectionInterrupted': '连接中断，请稍后重试。',
   'copilot.errors.applyTargetStale': '这条建议对应的内容刚刚发生了变化，请刷新后再试一次。',
@@ -234,11 +259,13 @@ export const copilotZhMessages = {
 
 export const copilotEnMessages = {
   'copilot.scope.wholeBook': 'Whole-book research',
+  'copilot.scope.outline': 'Outline research',
   'copilot.scope.draftContext': 'Draft context',
   'copilot.scope.relationshipContext': 'Relationship context',
   'copilot.scope.entityContext': 'Entity context',
 
   'copilot.session.title.wholeBook': 'Whole-book exploration',
+  'copilot.session.title.outline': 'Outline research',
   'copilot.session.title.draftCleanup': 'Draft cleanup',
   'copilot.session.title.relationshipContext': 'Relationship context',
   'copilot.session.title.entityContext': 'Entity enrichment',
@@ -249,6 +276,14 @@ export const copilotEnMessages = {
 
   'copilot.drawer.badge': 'Novel Copilot',
   'copilot.drawer.sessionsCount': ({ count }) => `${String(count ?? 0)} sessions`,
+
+  'copilot.category.title': 'Choose a workspace',
+  'copilot.category.subtitle': 'Choose a workspace to start AI-assisted writing',
+  'copilot.category.wholeBook.title': 'Whole-Book Exploration',
+  'copilot.category.wholeBook.description': 'Search for settings, characters, and clues across chapters, generate drafts from source text, and explore entity associations',
+  'copilot.category.outline.title': 'Outline Research',
+  'copilot.category.outline.description': 'Generate, refine, and review volume and chapter outline structures based on existing chapter content',
+
   'copilot.drawer.currentWorkspace': ({ title }) => `Current workspace: ${String(title ?? '')}`,
   'copilot.drawer.workspace': 'Workspace',
   'copilot.drawer.currentRequest': 'Current request',
@@ -298,6 +333,7 @@ export const copilotEnMessages = {
   'copilot.suggestion.kind.entity': 'Entity',
   'copilot.suggestion.kind.relationship': 'Relationship',
   'copilot.suggestion.kind.system': 'System',
+  'copilot.suggestion.kind.outline': 'Outline',
   'copilot.suggestion.source.chapterExcerpt': 'Chapter excerpt',
   'copilot.suggestion.source.worldEntity': 'World entry',
   'copilot.suggestion.source.worldRelationship': 'Relationship entry',
@@ -421,6 +457,20 @@ export const copilotEnMessages = {
   'copilot.workbench.draft.fill.label': 'Fill missing fields',
   'copilot.workbench.draft.fill.description': 'Find drafts with sparse descriptions or missing fields',
   'copilot.workbench.draft.fill.prompt': 'Please identify entries in the current drafts that are missing fields, too brief, or obviously ready for enrichment, and rank them by value.',
+
+  'copilot.workbench.outline.eyebrow': 'Outline research',
+  'copilot.workbench.outline.title': 'Generate volume-level outlines, refine chapter outlines, and review the outline structure and pacing based on existing chapter content.',
+  'copilot.workbench.outline.composerLabel': 'Additional requirements',
+  'copilot.workbench.outline.composerPlaceholder': 'Add detail, such as "Focus on faction-arc pacing across volumes"',
+  'copilot.workbench.outline.generateVolumes.label': 'Generate volume outlines',
+  'copilot.workbench.outline.generateVolumes.description': 'Auto-generate volume-level outline structure from existing chapter content',
+  'copilot.workbench.outline.generateVolumes.prompt': 'Based on all current chapter content, analyze plot progression and generate a reasonable volume-level outline structure. Each volume should have a clear theme, core conflict, and key turning point.',
+  'copilot.workbench.outline.generateChapters.label': 'Generate chapter outlines',
+  'copilot.workbench.outline.generateChapters.description': 'Refine chapter-level plot nodes and pacing from volume outlines',
+  'copilot.workbench.outline.generateChapters.prompt': 'Based on the volume outline structure, refine chapter outlines one by one, ensuring tight plot transitions and reasonable pacing between chapters.',
+  'copilot.workbench.outline.review.label': 'Review outlines',
+  'copilot.workbench.outline.review.description': 'Review outline consistency, pacing arc, and foreshadowing distribution',
+  'copilot.workbench.outline.review.prompt': 'Review the current outline structure for consistency and completeness. Focus on: pacing arcs across volumes, foreshadowing distribution balance, and character trajectory coherence.',
 
   'copilot.errors.pollRunNotFound': 'This research run is no longer available. Please start a new one.',
   'copilot.errors.connectionInterrupted': 'Connection interrupted. Please try again shortly.',

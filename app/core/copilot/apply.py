@@ -323,6 +323,52 @@ def apply_suggestions(
     return _ordered_results()
 
 
+def _load_outline_system(db: Session, novel_id: int, system_id: int | None) -> WorldSystem:
+    if not system_id:
+        raise _ApplyDomainError(code="missing_system_id", message="Missing system_id", status_code=400)
+    system = db.query(WorldSystem).filter(WorldSystem.id == system_id, WorldSystem.novel_id == novel_id).first()
+    if not system:
+        raise _ApplyDomainError(code="copilot_target_stale", message="System no longer exists", status_code=409)
+    if system.display_type != "outline":
+        raise _ApplyDomainError(code="not_actionable", message="System is not an outline", status_code=409)
+    return system
+
+
+def _merge_outline_volume_data(current: dict[str, Any], patch: dict[str, Any]) -> dict[str, Any]:
+    allowed = {"volume_number", "volume_title", "chapter_start", "chapter_end", "outline_text"}
+    merged = dict(current or {})
+    for key in allowed:
+        if key in patch and patch[key] is not None:
+            merged[key] = patch[key]
+    merged.setdefault("chapters", list((current or {}).get("chapters") or []))
+    return merged
+
+
+def _merge_outline_chapters(current: dict[str, Any], chapters: list[dict[str, Any]]) -> dict[str, Any]:
+    merged = dict(current or {})
+    by_number = {chapter.get("chapter_number"): dict(chapter) for chapter in merged.get("chapters", []) if isinstance(chapter, dict)}
+    for chapter in chapters:
+        chapter_number = chapter.get("chapter_number")
+        if not isinstance(chapter_number, int):
+            continue
+        existing = by_number.get(chapter_number, {})
+        by_number[chapter_number] = {**existing, **{key: value for key, value in chapter.items() if value is not None}}
+    merged["chapters"] = [by_number[number] for number in sorted(number for number in by_number if isinstance(number, int))]
+    return merged
+
+
+def _stage_outline_system_update(
+    db: Session,
+    novel_id: int,
+    system_id: int,
+    outline_data: dict[str, Any],
+) -> None:
+    from app.core.world import crud as world_crud
+
+    validated = WorldSystemUpdate.model_validate({"data": outline_data})
+    world_crud.stage_update_system(novel_id, system_id, validated.model_dump(exclude_unset=True), db)
+
+
 def _execute_apply_action(
     db: Session,
     novel_id: int,
@@ -436,6 +482,22 @@ def _execute_apply_action(
         validated = WorldSystemUpdate.model_validate(data)
         world_crud.stage_update_system(novel_id, sys_id, validated.model_dump(exclude_unset=True), db)
         return {"system_id": sys_id}
+
+    if action_type == "update_outline_volume":
+        sys_id = action.get("system_id")
+        system = _load_outline_system(db, novel_id, sys_id)
+        outline_data = _merge_outline_volume_data(dict(system.data or {}), dict(data or {}))
+        _stage_outline_system_update(db, novel_id, system.id, outline_data)
+        return {"system_id": system.id}
+
+    if action_type == "update_outline_chapters":
+        sys_id = action.get("system_id")
+        system = _load_outline_system(db, novel_id, sys_id)
+        raw_chapters = data.get("chapters") if isinstance(data, dict) else []
+        chapters = raw_chapters if isinstance(raw_chapters, list) else []
+        outline_data = _merge_outline_chapters(dict(system.data or {}), [item for item in chapters if isinstance(item, dict)])
+        _stage_outline_system_update(db, novel_id, system.id, outline_data)
+        return {"system_id": system.id}
 
     raise _ApplyDomainError(code="unknown_apply_type", message=f"Unknown apply type: {action_type}", status_code=400)
 

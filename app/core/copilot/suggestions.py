@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.core.copilot.messages import CopilotTextKey, get_copilot_text
 from app.core.copilot.scope import EvidenceItem, ScopeSnapshot
-from app.models import CopilotRun, WorldEntity
+from app.models import CopilotRun, WorldEntity, WorldSystem
 from app.schemas import SystemDisplayType
 
 logger = logging.getLogger(__name__)
@@ -72,6 +72,8 @@ def _normalize_entity_name_key(name: str | None) -> str:
 
 
 _VALID_DISPLAY_TYPES = frozenset(get_args(SystemDisplayType))
+_OUTLINE_SUGGESTION_KINDS = {"update_outline_volume", "update_outline_chapters", "review_outline_issue"}
+_OUTLINE_VOLUME_FIELDS = {"volume_number", "volume_title", "chapter_start", "chapter_end", "outline_text"}
 
 
 def _sanitize_display_type(raw: object) -> str:
@@ -260,6 +262,20 @@ def _compile_one(
     evidence_ids = [evidence[idx].evidence_id for idx in cited if isinstance(idx, int) and 0 <= idx < len(evidence)]
     evidence_quotes = [evidence[idx].excerpt[:200] for idx in cited if isinstance(idx, int) and 0 <= idx < len(evidence)][:3]
 
+    if kind in _OUTLINE_SUGGESTION_KINDS:
+        return _compile_outline_suggestion(
+            kind=kind,
+            title=title,
+            summary=summary,
+            suggestion_id=suggestion_id,
+            target_id=target_id,
+            delta=delta,
+            evidence_ids=evidence_ids,
+            evidence_quotes=evidence_quotes,
+            snapshot=snapshot,
+            interaction_locale=interaction_locale,
+        )
+
     actionable = True
     apply_action = None
     target_label = ""
@@ -386,6 +402,140 @@ def _resource_to_tab(resource: str, profile: str) -> str:
     if profile == "draft_governance":
         return "review"
     return {"entity": "entities", "relationship": "relationships", "system": "systems"}.get(resource, "entities")
+
+
+def _find_system(snapshot: ScopeSnapshot, system_id: int | None) -> WorldSystem | None:
+    if system_id is None:
+        return None
+    return next((system for system in snapshot.systems if system.id == system_id), None)
+
+
+def _outline_patch_from_delta(kind: str, delta: dict[str, Any]) -> dict[str, Any]:
+    if kind == "update_outline_volume":
+        return {key: delta[key] for key in _OUTLINE_VOLUME_FIELDS if delta.get(key) is not None}
+    if kind == "update_outline_chapters" and isinstance(delta.get("chapters"), list):
+        return {"chapters": [chapter for chapter in delta["chapters"] if isinstance(chapter, dict)]}
+    return {}
+
+
+def _outline_preview_deltas(
+    *,
+    kind: str,
+    delta: dict[str, Any],
+    system: WorldSystem | None,
+    interaction_locale: str,
+) -> list[dict[str, Any]]:
+    if kind == "review_outline_issue":
+        recommendation = str(delta.get("recommendation") or delta.get("issue_type") or "")
+        return [{"field": "outline_issue", "label": "Outline review", "before": None, "after": recommendation}] if recommendation else []
+
+    current_data = dict(getattr(system, "data", None) or {})
+    if kind == "update_outline_chapters":
+        before_count = len(current_data.get("chapters") or [])
+        after_count = len([item for item in delta.get("chapters", []) if isinstance(item, dict)])
+        return [{
+            "field": "chapters",
+            "label": "Chapter briefs",
+            "before": f"Existing chapter briefs: {before_count}",
+            "after": f"New/updated chapter briefs: {after_count}",
+        }]
+
+    labels = {
+        "volume_number": "Volume number",
+        "volume_title": "Volume title",
+        "chapter_start": "Chapter start",
+        "chapter_end": "Chapter end",
+        "outline_text": "Volume outline",
+    }
+    deltas: list[dict[str, Any]] = []
+    for field in ("volume_number", "volume_title", "chapter_start", "chapter_end", "outline_text"):
+        if delta.get(field) is None:
+            continue
+        before = current_data.get(field)
+        deltas.append({
+            "field": field,
+            "label": labels[field],
+            "before": str(before) if before not in (None, "") else None,
+            "after": str(delta[field]),
+        })
+    return deltas
+
+
+def _compile_outline_suggestion(
+    *,
+    kind: str,
+    title: str,
+    summary: str,
+    suggestion_id: str,
+    target_id: int | None,
+    delta: dict[str, Any],
+    evidence_ids: list[str],
+    evidence_quotes: list[str],
+    snapshot: ScopeSnapshot,
+    interaction_locale: str,
+) -> CompiledSuggestion:
+    system = _find_system(snapshot, target_id)
+    actionable = kind != "review_outline_issue"
+    apply_action: dict[str, Any] | None = None
+    non_actionable_reason: str | None = None
+    target_label = str(target_id or "?")
+
+    if system is None:
+        actionable = False
+        non_actionable_reason = _suggestion_text(interaction_locale, CopilotTextKey.SUGGESTION_REASON_STALE)
+    else:
+        target_label = system.name
+        if system.display_type != "outline":
+            actionable = False
+            non_actionable_reason = _suggestion_text(
+                interaction_locale,
+                CopilotTextKey.SUGGESTION_REASON_CANNOT_APPLY_DIRECT,
+            )
+        elif kind == "review_outline_issue":
+            non_actionable_reason = _suggestion_text(
+                interaction_locale,
+                CopilotTextKey.SUGGESTION_REASON_NOT_DIRECTLY_APPLICABLE,
+            )
+        else:
+            patch = _outline_patch_from_delta(kind, delta)
+            if patch:
+                apply_action = {"type": kind, "system_id": system.id, "data": patch}
+            else:
+                actionable = False
+                non_actionable_reason = _suggestion_text(
+                    interaction_locale,
+                    CopilotTextKey.SUGGESTION_REASON_CANNOT_APPLY_DIRECT,
+                )
+
+    preview = {
+        "target_label": target_label,
+        "summary": summary,
+        "field_deltas": _outline_preview_deltas(
+            kind=kind,
+            delta=delta,
+            system=system,
+            interaction_locale=interaction_locale,
+        ),
+        "evidence_quotes": evidence_quotes,
+        "actionable": actionable and apply_action is not None,
+        "non_actionable_reason": non_actionable_reason,
+    }
+    target = {
+        "resource": "system",
+        "resource_id": target_id,
+        "label": target_label if system is not None else "",
+        "tab": "systems",
+    }
+    return CompiledSuggestion(
+        suggestion_id=suggestion_id,
+        kind=kind,
+        title=title,
+        summary=summary,
+        evidence_ids=evidence_ids,
+        target=target,
+        preview=preview,
+        apply_action=apply_action,
+    )
 
 
 def _build_new_resource_label(resource: str, interaction_locale: str) -> str:

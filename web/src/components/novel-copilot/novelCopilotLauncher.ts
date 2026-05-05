@@ -144,3 +144,17 @@ export function buildDraftCleanupCopilotLaunchArgs({
     { displayTitle: translateUiMessage(locale, 'copilot.session.title.draftCleanup') },
   ]
 }
+
+export function buildOutlineCopilotLaunchArgs(
+  routeState?: CopilotRouteContext | null,
+): NovelCopilotLaunchArgs {
+  const locale = resolveCurrentUiLocale()
+  return [
+    {
+      mode: 'outline' as const,
+      scope: 'whole_book' as const,
+      context: buildWholeBookContext(routeState),
+    },
+    { displayTitle: translateUiMessage(locale, 'copilot.session.title.outline') },
+  ]
+}

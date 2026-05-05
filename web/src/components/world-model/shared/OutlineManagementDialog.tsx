@@ -52,11 +52,12 @@ export function OutlineManagementDialog({ novelId, open, onOpenChange }: { novel
   const [activity, setActivity] = useState<ActivityItem[]>([])
   const controllerRef = useRef<AbortController | null>(null)
 
-  const baseVolumes = useMemo(() => outlineState?.system?.data.volumes ?? [], [outlineState])
+  const baseVolumes = useMemo(() => outlineState?.systems.map(system => system.data).sort((left, right) => left.volume_number - right.volume_number) ?? [], [outlineState])
   const volumes: OutlineVolume[] = streamVolumes ?? baseVolumes
   const selected = useMemo(() => volumes.find(volume => volume.volume_number === selectedVolume) ?? volumes[0] ?? null, [volumes, selectedVolume])
-  const systemStatusLabel = outlineState?.system
-    ? t(outlineState.system.status === 'confirmed' ? 'worldModel.common.statusConfirmed' : 'worldModel.common.statusDraft')
+  const selectedSystem = useMemo(() => outlineState?.systems.find(system => system.data.volume_number === selected?.volume_number) ?? null, [outlineState, selected])
+  const systemStatusLabel = outlineState?.systems.length
+    ? t(outlineState.systems.every(system => system.status === 'confirmed') ? 'worldModel.common.statusConfirmed' : 'worldModel.common.statusDraft')
     : t('worldModel.common.none')
   const isStreaming = streamPhase !== null
 
@@ -179,7 +180,7 @@ export function OutlineManagementDialog({ novelId, open, onOpenChange }: { novel
                   runningVolume={streamPhase === 'volume'}
                   runningChapter={streamPhase === 'chapter'}
                   canGenerateVolumes={!isStreaming}
-                  canGenerateChapters={!isStreaming && !!selected && selected.status === 'approved'}
+                  canGenerateChapters={!isStreaming && !!selected && selectedSystem?.status === 'confirmed'}
                   canApproveAll={!isStreaming && volumes.length > 0}
                   approvePending={approveOutline.isPending}
                   onGenerateVolumes={handleGenerateVolumes}

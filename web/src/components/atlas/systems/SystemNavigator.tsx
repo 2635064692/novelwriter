@@ -17,7 +17,7 @@ const INITIAL_DATA: Record<SystemDisplayType, Record<string, unknown>> = {
   hierarchy: { nodes: [] },
   timeline: { events: [] },
   list: { items: [] },
-  outline: { volumes: [] },
+  outline: { volume_number: 1, volume_title: '', chapter_start: 1, chapter_end: 1, outline_text: '', chapters: [] },
 }
 
 export function SystemNavigator({ novelId, selectedId, onSelect, onOpenDraftReview }: {

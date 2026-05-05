@@ -6,9 +6,12 @@ import {
   type CopilotSessionListItem,
   type OpenNovelCopilotOptions,
   type NovelCopilotSession,
+  type CopilotWholeBookPrefill,
 } from '@/types/copilot'
 import { getDefaultCopilotSessionTitle } from '@/components/novel-copilot/novelCopilotHelpers'
 import { copilotApi } from '@/services/api'
+import { resolveCurrentUiLocale } from '@/lib/uiLocale'
+import { translateUiMessage } from '@/lib/uiMessages'
 
 export interface NovelCopilotSessionsOnlyState {
   isOpen: boolean
@@ -22,6 +25,9 @@ export interface NovelCopilotSessionsOnlyState {
   resolveBackendSessionId: (sessionId: string) => Promise<string>
   updateSessionModelId: (sessionId: string, modelId: number | null) => void
   restoreSession: (item: CopilotSessionListItem) => string
+  showCategoryPicker: boolean
+  openCategoryPicker: () => void
+  selectCategory: (category: 'whole_book' | 'outline') => string
 }
 
 function buildLocalSessionId() {
@@ -78,6 +84,7 @@ export function useNovelCopilotSessionsState({
   const [isOpen, setIsOpen] = useState(false)
   const [sessions, setSessions] = useState<NovelCopilotSession[]>([])
   const [focusedSessionId, setFocusedSessionId] = useState<string | null>(null)
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false)
   const sessionsRef = useRef<NovelCopilotSession[]>([])
   const backendSessionRequestsRef = useRef<Record<string, BackendSessionRequestState>>({})
   const syncedOpenSessionKeysRef = useRef<Record<string, string>>({})
@@ -265,11 +272,36 @@ export function useNovelCopilotSessionsState({
 
   const closeDrawer = useCallback(() => {
     setIsOpen(false)
+    setShowCategoryPicker(false)
   }, [])
 
   const reopenDrawer = useCallback(() => {
-    if (sessionsRef.current.length > 0) setIsOpen(true)
+    if (sessionsRef.current.length > 0 || showCategoryPicker) setIsOpen(true)
+  }, [showCategoryPicker])
+
+  const openCategoryPicker = useCallback(() => {
+    setShowCategoryPicker(true)
+    setIsOpen(true)
   }, [])
+
+  const selectCategory = useCallback((category: 'whole_book' | 'outline'): string => {
+    setShowCategoryPicker(false)
+    const locale = resolveCurrentUiLocale()
+    if (category === 'whole_book') {
+      const prefill: CopilotWholeBookPrefill = {
+        mode: 'research',
+        scope: 'whole_book',
+        context: undefined,
+      }
+      return openDrawer(prefill, {
+        displayTitle: translateUiMessage(locale, 'copilot.session.title.wholeBook'),
+      })
+    }
+    return openDrawer(
+      { mode: 'outline', scope: 'whole_book', context: undefined },
+      { displayTitle: translateUiMessage(locale, 'copilot.session.title.outline') },
+    )
+  }, [openDrawer])
 
   const restoreSession = useCallback((item: CopilotSessionListItem): string => {
     if (novelId == null) return ''
@@ -303,5 +335,8 @@ export function useNovelCopilotSessionsState({
     resolveBackendSessionId,
     updateSessionModelId,
     restoreSession,
+    showCategoryPicker,
+    openCategoryPicker,
+    selectCategory,
   }
 }

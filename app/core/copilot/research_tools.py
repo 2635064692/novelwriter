@@ -61,10 +61,10 @@ _TOOL_SCHEMAS: list[dict[str, Any]] = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "query": {"type": "string", "description": "Free-text research query"},
+                    "query": {"type": "string", "description": "Volume/chapter references, e.g. \"第一卷 第2章\" or \"2\" / \"2-30\""},
                     "scope": {
                         "type": "string",
-                        "enum": ["story_text", "world_rows", "drafts", "all"],
+                        "enum": ["story_text", "world_rows", "drafts", "outline", "all"],
                         "description": "Search scope filter (default: all)",
                     },
                 },
@@ -304,6 +304,9 @@ def _tool_find(
 
     if scope_filter == "drafts":
         packs += _find_from_draft_auditors(snapshot, interaction_locale)
+
+    if scope_filter == "outline":
+        packs += _find_from_outline(query, snapshot, interaction_locale)
 
     if len(packs) < 3 and scope_filter in ("story_text", "all"):
         packs += _find_from_chapters(query, db, novel)
@@ -573,6 +576,192 @@ def _find_from_draft_auditors(
                 related_targets=[{"type": "system", "id": system.id, "name": system.name}],
                 conflict_group="draft_quality",
             ))
+
+    return packs
+
+
+_CN_DIGIT_MAP: dict[str, int] = {
+    "零": 0, "一": 1, "二": 2, "三": 3, "四": 4,
+    "五": 5, "六": 6, "七": 7, "八": 8, "九": 9,
+    "十": 10, "百": 100, "千": 1000,
+}
+
+_CN_GROUP_RE = re.compile(r"第([\u4e00-\u9fff\d]+)(卷|章)")
+
+
+def _chinese_to_int(s: str) -> int | None:
+    s = s.strip()
+    if not s:
+        return None
+    if s.isdigit():
+        return int(s)
+    total = 0
+    unit = 1
+    prev_digit = 0
+    has_valid = False
+    for ch in reversed(s):
+        val = _CN_DIGIT_MAP.get(ch)
+        if val is None:
+            return None
+        has_valid = True
+        if val >= 10:
+            unit = val if val > unit else unit * val
+            prev_digit = 0
+        else:
+            total += val * unit
+            prev_digit = val
+    if prev_digit == 0 and unit > 1:
+        total += unit
+    if unit == 1 and len(s) > 1:
+        return None
+    return total if has_valid else None
+
+
+def _parse_outline_query(query: str) -> list[tuple[int, int | None]]:
+    raw = (query or "").strip()
+    if not raw:
+        return []
+
+    targets: list[tuple[int, int | None]] = []
+    seen: set[tuple[int, int | None]] = set()
+    current_vol: int | None = None
+    last_end = 0
+
+    for m in _CN_GROUP_RE.finditer(raw):
+        prefix = raw[last_end:m.start()].strip()
+        last_end = m.end()
+        if prefix:
+            current_vol = None
+
+        num_str = m.group(1)
+        category = m.group(2)
+
+        if category == "卷":
+            vol = _chinese_to_int(num_str)
+            if vol is not None:
+                current_vol = vol
+                key = (vol, None)
+                if key not in seen:
+                    seen.add(key)
+                    targets.append(key)
+        else:
+            if current_vol is not None:
+                chapters = _resolve_chapter_numbers(num_str)
+                for ch in chapters:
+                    key = (current_vol, ch)
+                    if key not in seen:
+                        seen.add(key)
+                        targets.append(key)
+            else:
+                ch = _chinese_to_int(num_str)
+                if ch is not None:
+                    key = (None, ch)
+                    if key not in seen:
+                        seen.add(key)
+                        targets.append(key)
+
+    if not targets:
+        return _parse_outline_query_legacy(raw)
+
+    return targets
+
+
+def _resolve_chapter_numbers(num_str: str) -> list[int]:
+    full = _chinese_to_int(num_str)
+    if full is not None:
+        return [full]
+    chapters: list[int] = []
+    for ch_char in num_str:
+        val = _CN_DIGIT_MAP.get(ch_char)
+        if val is not None and 1 <= val <= 9:
+            if val not in chapters:
+                chapters.append(val)
+    return chapters
+
+
+def _parse_outline_query_legacy(raw: str) -> list[tuple[int, int | None]]:
+    tokens = re.split(r"[,，\s]+", raw)
+    targets: list[tuple[int, int | None]] = []
+    seen: set[tuple[int, int | None]] = set()
+    for token in tokens:
+        token = token.strip()
+        if not token:
+            continue
+        match = re.fullmatch(r"(\d+)-(\d+)", token)
+        if match:
+            vol = int(match.group(1))
+            ch = int(match.group(2))
+            key = (vol, ch)
+            if key not in seen:
+                seen.add(key)
+                targets.append(key)
+            continue
+        match = re.fullmatch(r"(\d+)", token)
+        if match:
+            vol = int(match.group(1))
+            key = (vol, None)
+            if key not in seen:
+                seen.add(key)
+                targets.append(key)
+    return targets
+
+
+def _find_from_outline(
+    query: str,
+    snapshot: ScopeSnapshot,
+    interaction_locale: str = "zh",
+) -> list[EvidencePack]:
+    outline_systems = [s for s in snapshot.systems if s.display_type == "outline"]
+    if not outline_systems:
+        return []
+
+    targets = _parse_outline_query(query)
+    if not targets:
+        return []
+
+    packs: list[EvidencePack] = []
+    for system in outline_systems:
+        data = dict(system.data or {})
+        volume_number = data.get("volume_number")
+        if not isinstance(volume_number, int):
+            continue
+
+        chapters: list[dict[str, Any]] = data.get("chapters") or []
+
+        for target_vol, target_ch in targets:
+            if target_vol is not None and volume_number != target_vol:
+                continue
+
+            if target_ch is None:
+                outline_text = str(data.get("outline_text") or "")
+                volume_title = str(data.get("volume_title") or "")
+                label = _tool_text(interaction_locale, CopilotTextKey.TEXT_RESOURCE_SYSTEM)
+                preview = f"[{label}] {volume_title}\n{outline_text}"[:500]
+                packs.append(EvidencePack(
+                    pack_id=make_pack_id(f"pk_vol_{system.id}_{volume_number}", preview[:100]),
+                    source_refs=[{"type": "system", "id": system.id}],
+                    preview_excerpt=preview,
+                    anchor_terms=[f"volume_{volume_number}"],
+                    support_count=1,
+                    related_targets=[{"type": "system", "id": system.id, "name": system.name, "volume_number": volume_number}],
+                ))
+            else:
+                for ch in chapters:
+                    chapter_number = ch.get("chapter_number")
+                    if not isinstance(chapter_number, int) or chapter_number != target_ch:
+                        continue
+                    brief_text = str(ch.get("brief_text") or "")
+                    chapter_title = str(ch.get("chapter_title") or "")
+                    preview = f"Ch.{chapter_number} {chapter_title}\n{brief_text}"[:500]
+                    packs.append(EvidencePack(
+                        pack_id=make_pack_id(f"pk_ch_{system.id}_{volume_number}_{chapter_number}", preview[:100]),
+                        source_refs=[{"type": "system", "id": system.id}],
+                        preview_excerpt=preview,
+                        anchor_terms=[f"volume_{volume_number}", f"chapter_{chapter_number}"],
+                        support_count=1,
+                        related_targets=[{"type": "system", "id": system.id, "name": system.name, "volume_number": volume_number, "chapter_number": chapter_number}],
+                    ))
+                    break
 
     return packs
 

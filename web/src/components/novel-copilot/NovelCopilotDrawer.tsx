@@ -23,6 +23,7 @@ import { NovelCopilotSessionStrip } from './NovelCopilotSessionStrip'
 import { CopilotSessionHistory } from './CopilotSessionHistory'
 import { CopilotAnswerContent } from './CopilotAnswerContent'
 import { CopilotScrollNav } from './CopilotScrollNav'
+import { CopilotCategoryPicker } from './CopilotCategoryPicker'
 import { getCopilotWorkbenchMeta } from './novelCopilotWorkbench'
 import {
   copilotDrawerShellClassName,
@@ -63,6 +64,8 @@ export function NovelCopilotDrawer({
     dismissSuggestions,
     openDrawer,
     restoreSession,
+    showCategoryPicker,
+    selectCategory,
   } = useNovelCopilot()
   const shell = useOptionalNovelShell()
   const focusedSessionMeta =
@@ -72,7 +75,32 @@ export function NovelCopilotDrawer({
 
   // Keep the drawer cold until there is an actual focused session. This avoids
   // eager world-data fanout on pages that only mount the shell-level drawer.
-  if (!isOpen || !focusedSessionMeta) return null
+  if (!isOpen) return null
+
+  if (showCategoryPicker) {
+    const pickerWidth = shell?.shellState.drawerWidth ?? DEFAULT_NOVEL_SHELL_DRAWER_WIDTH
+    return (
+      <div
+        className={cn(
+          'relative flex flex-col overflow-hidden border-l shadow-[var(--nw-copilot-shell-shadow)]',
+          copilotDrawerShellClassName,
+          'shrink-0',
+        )}
+        style={{ width: pickerWidth }}
+        data-testid="novel-copilot-drawer"
+        data-state="category-picker"
+      >
+        <CopilotCategoryPicker
+          onSelect={(category) => {
+            selectCategory(category)
+          }}
+          onClose={closeDrawer}
+        />
+      </div>
+    )
+  }
+
+  if (!focusedSessionMeta) return null
 
   const activeFocusedSessionId = focusedSessionMeta.sessionId
 

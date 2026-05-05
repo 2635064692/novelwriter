@@ -233,14 +233,6 @@ async def _build_continuation_prompt(
             f"Novel {novel_id} has no chapters. Cannot generate continuation without existing content."
         )
 
-    outlines = (
-        db.query(Outline)
-        .filter(Outline.novel_id == novel_id)
-        .order_by(Outline.chapter_end.desc())
-        .limit(2)
-        .all()
-    )
-
     recent_content = "\n\n".join(
         format_chapter_heading_for_prompt(
             ch.chapter_number,
@@ -251,12 +243,6 @@ async def _build_continuation_prompt(
         for ch in recent_chapters
     )
 
-    outline_heading_fmt = get_snippet(SnippetKey.OUTLINE_HEADING_FMT, prompt_locale)
-    outline_content = "\n\n".join(
-        outline_heading_fmt.format(start=o.chapter_start, end=o.chapter_end) + f"\n{o.outline_text}"
-        for o in outlines
-    ) if outlines else get_snippet(SnippetKey.NO_OUTLINE, prompt_locale)
-
     next_chapter = get_next_missing_chapter_number(db, novel_id)
     latest_recent_chapter = recent_chapters[-1]
     next_chapter_reference = format_next_chapter_reference(
@@ -266,10 +252,27 @@ async def _build_continuation_prompt(
         locale=prompt_locale,
     )
 
-    outline_context_section = ""
-    outline_context = fetch_outline_context(db, novel_id, next_chapter)
-    if outline_context:
-        outline_context_section = f"\n{outline_context.format_for_prompt()}\n"
+    outline_content = get_snippet(SnippetKey.NO_OUTLINE, prompt_locale)
+    outline_ctx = fetch_outline_context(db, novel_id, next_chapter)
+    if outline_ctx:
+        vol = outline_ctx.volume
+        vol_title = str(vol.get("volume_title") or f"第{vol.get('volume_number')}卷")
+        vol_text = str(vol.get("outline_text") or "").strip()
+        lines = [f"【当前卷纲】{vol_title}"]
+        if vol_text:
+            lines.append(vol_text)
+        if outline_ctx.chapter:
+            ch = outline_ctx.chapter
+            ch_title = str(ch.get("chapter_title") or f"第{ch.get('chapter_number')}章")
+            brief = str(ch.get("brief_text") or "").strip()
+            lines.append(f"【本章章纲】{ch_title}")
+            if brief:
+                lines.append(brief)
+            suspense = ch.get("suspense_density")
+            twist = ch.get("cognitive_twist")
+            if suspense or twist:
+                lines.append(f"悬念密度：{suspense or '未标注'}；认知颠覆：{twist or '未标注'}")
+        outline_content = "\n".join(lines)
         logger.info("Injecting outline context for novel %s chapter %s", novel_id, next_chapter)
 
     world_context_section = ""
@@ -313,8 +316,6 @@ async def _build_continuation_prompt(
     combined_context = ""
     if world_context_section:
         combined_context += world_context_section
-    if outline_context_section:
-        combined_context += outline_context_section
     if lorebook_context:
         combined_context += lorebook_context
 

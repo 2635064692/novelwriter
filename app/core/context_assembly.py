@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.language_policy import LanguagePolicy, get_language_policy
 from app.models import Novel, WorldEntity, WorldRelationship, WorldSystem
+from app.core.outline_domain import OUTLINE_DISPLAY_TYPE
 from app.world_visibility import VIS_ACTIVE, VIS_HIDDEN, VIS_REFERENCE
 
 logger = logging.getLogger(__name__)
@@ -463,6 +464,7 @@ def assemble_writer_context(db: Session, novel_id: int, chapter_text: str) -> Di
             WorldSystem.novel_id == novel_id,
             WorldSystem.status == "confirmed",
             WorldSystem.visibility == VIS_ACTIVE,
+            WorldSystem.display_type != OUTLINE_DISPLAY_TYPE,
         )
         .all()
     )

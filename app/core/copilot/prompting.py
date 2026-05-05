@@ -13,6 +13,281 @@ from app.core.copilot.scope import EvidenceItem, ScopeSnapshot
 from app.language import get_language_fallback_chain
 from app.models import WorldEntity, WorldRelationship, WorldSystem
 
+
+# ---------------------------------------------------------------------------
+# Output format entities — injectable JSON schema + rules per focus_variant
+# ---------------------------------------------------------------------------
+
+class OutputFormatSchema:
+    """Base output-format entity for copilot prompt injection."""
+
+    def render(self, locale: str, variant: str) -> str:
+        """Render the complete output-format section.
+
+        variant: ``"research"`` | ``"tool_loop"``
+        """
+        raise NotImplementedError
+
+
+class GenericOutputFormat(OutputFormatSchema):
+    """Non-outline format: entity / relationship / system suggestions."""
+
+    _SCHEMA_ZH = """{
+  "answer": "（必填）自然语言分析/回答",
+  "cited_evidence_indices": [{cited}],
+  "suggestions": [
+    {
+      "kind": "update_entity | create_entity | update_relationship | create_relationship | update_system | create_system",
+      "title": "建议标题",
+      "summary": "一句话说明",
+      "cited_evidence_indices": [{cited}],
+      "target_resource": "entity | relationship | system",
+      "target_id": "整数ID（update 类必填；create 类为 null）",
+      "delta": {
+        "name": "（可选）",
+        "entity_type": "（可选）",
+        "description": "（可选）",
+        "aliases": ["（可选）"],
+        "label": "（可选，relationship）",
+        "source_id": "（可选，relationship create）",
+        "target_id": "（可选，relationship create）",
+        "source_name": "（可选，relationship create；当关系涉及新实体时填写名称）",
+        "target_name": "（可选，relationship create；当关系涉及新实体时填写名称）",
+        "source_entity_type": "（可选，relationship create；当 source_name 是新实体时填写类型）",
+        "target_entity_type": "（可选，relationship create；当 target_name 是新实体时填写类型）",
+        "constraints": ["（可选，system）"],
+        "display_type": "（可选，system）",
+        "attributes": [
+          {"key": "属性名", "surface": "可见值"}
+        ]
+      }
+    }
+  ]
+}"""
+
+    _SCHEMA_EN = """{
+  "answer": "Natural-language analysis or answer (required)",
+  "cited_evidence_indices": [{cited}],
+  "suggestions": [
+    {
+      "kind": "update_entity | create_entity | update_relationship | create_relationship | update_system | create_system",
+      "title": "Suggestion title",
+      "summary": "One-sentence explanation",
+      "cited_evidence_indices": [{cited}],
+      "target_resource": "entity | relationship | system",
+      "target_id": "Integer ID (required for update kinds; null for create kinds)",
+      "delta": {
+        "name": "(optional)",
+        "entity_type": "(optional)",
+        "description": "(optional)",
+        "aliases": ["(optional)"],
+        "label": "(optional, relationship)",
+        "source_id": "(optional, relationship create)",
+        "target_id": "(optional, relationship create)",
+        "source_name": "(optional, relationship create; required when the relationship refers to a new entity)",
+        "target_name": "(optional, relationship create; required when the relationship refers to a new entity)",
+        "source_entity_type": "(optional, relationship create; required when source_name is a new entity)",
+        "target_entity_type": "(optional, relationship create; required when target_name is a new entity)",
+        "constraints": ["(optional, system)"],
+        "display_type": "(optional, system)",
+        "attributes": [
+          {"key": "Attribute name", "surface": "Visible value"}
+        ]
+      }
+    }
+  ]
+}"""
+
+    _RULES_RESEARCH_ZH = (
+        "1. cited_evidence_indices 必须引用 [Evidence#N] 的索引，不能编造证据\n"
+        "2. suggestions 只在有充分证据时才生成；没有 suggestions 是正常结果\n"
+        "3. target_id 必须引用上面的 [Entity#ID] / [Rel#ID] / [System#ID]\n"
+        "4. delta 中只包含需要修改/新增的字段\n"
+        "5. 不要建议删除、合并或拆分操作\n"
+        "6. attributes 数组用于建议新增或更新实体属性（key-value对）\n"
+        "7. 如果 create_relationship 涉及尚未存在的新实体，必须同时生成对应的 create_entity 建议，并在关系 delta 里填写 source_name / target_name\n"
+        "8. 实体不只包括人物，也包括势力、组织、地点、物件、概念、规则等；不要把所有新实体默认写成人物"
+    )
+
+    _RULES_RESEARCH_EN = (
+        "1. cited_evidence_indices must reference [Evidence#N] entries that actually exist\n"
+        "2. Generate suggestions only when evidence is sufficient; no suggestions is a normal outcome\n"
+        "3. target_id values must reference the [Entity#ID] / [Rel#ID] / [System#ID] entries above\n"
+        "4. delta must include only fields that need to be added or changed\n"
+        "5. Do not suggest delete, merge, or split operations\n"
+        "6. The attributes array is only for proposing added or updated entity attributes (key-value pairs)\n"
+        "7. If create_relationship introduces a not-yet-existing entity, you must also emit the matching create_entity suggestion and fill source_name / target_name in the relationship delta\n"
+        "8. Entities are not limited to people; they can also be factions, organizations, locations, objects, concepts, and rules. Do not default every new entity to Character"
+    )
+
+    _RULES_TOOL_LOOP_ZH = (
+        "1. 只能基于工具返回的证据提出建议，不能编造\n"
+        "2. 没有 suggestions 也是正常结果；若当前轮次是闲聊/能力询问，应默认返回空 suggestions\n"
+        "3. target_id 必须引用已知的实体/关系/体系 ID\n"
+        "4. delta 中只包含需要修改/新增的字段\n"
+        "5. 不要建议删除、合并或拆分\n"
+        "6. attributes 数组用于建议新增或更新实体属性（key-value对）\n"
+        "7. 如果 create_relationship 涉及尚未存在的新实体，必须同时生成对应的 create_entity 建议，并在关系 delta 里填写 source_name / target_name\n"
+        "8. 实体不只包括人物，也包括势力、组织、地点、物件、概念、规则等；不要把所有新实体默认写成人物"
+    )
+
+    _RULES_TOOL_LOOP_EN = (
+        "1. You may only propose suggestions based on evidence returned by tools\n"
+        "2. No suggestions is a normal result. For small talk or capability questions, default to an empty suggestions array\n"
+        "3. target_id values must reference known entity / relationship / system IDs\n"
+        "4. delta must include only fields that need to be added or changed\n"
+        "5. Do not suggest delete, merge, or split operations\n"
+        "6. The attributes array is only for proposing added or updated entity attributes (key-value pairs)\n"
+        "7. If create_relationship introduces a not-yet-existing entity, you must also emit the matching create_entity suggestion and fill source_name / target_name in the relationship delta\n"
+        "8. Entities are not limited to people; they can also be factions, organizations, locations, objects, concepts, and rules. Do not default every new entity to Character"
+    )
+
+    def render(self, locale: str, variant: str) -> str:
+        cited = "[0, 1]" if variant == "research" else "[]"
+        if locale == "zh":
+            header = "输出要求（JSON）" if variant == "research" else "最终回答格式（JSON）"
+            schema = self._SCHEMA_ZH.replace("{cited}", cited)
+            rules = self._RULES_RESEARCH_ZH if variant == "research" else self._RULES_TOOL_LOOP_ZH
+        else:
+            header = "Output format (JSON)" if variant == "research" else "Final answer format (JSON)"
+            schema = self._SCHEMA_EN.replace("{cited}", cited)
+            rules = self._RULES_RESEARCH_EN if variant == "research" else self._RULES_TOOL_LOOP_EN
+        return f"## {header}\n{schema}\n\n## 规则\n{rules}" if locale == "zh" else f"## {header}\n{schema}\n\n## Rules\n{rules}"
+
+
+class OutlineOutputFormat(OutputFormatSchema):
+    """Outline format: volume / chapter outline suggestions only."""
+
+    _SCHEMA_ZH = """{
+  "answer": "（必填）自然语言分析/回答",
+  "cited_evidence_indices": [{cited}],
+  "suggestions": [
+    {
+      "kind": "update_outline_volume | update_outline_chapters | review_outline_issue",
+      "title": "建议标题",
+      "summary": "一句话说明",
+      "cited_evidence_indices": [{cited}],
+      "target_resource": "system",
+      "target_id": "整数ID（display_type=outline 的 system ID）",
+      "delta": {
+        "volume_number": 1,
+        "volume_title": "卷标题",
+        "chapter_start": 1,
+        "chapter_end": 25,
+        "outline_text": "卷纲正文",
+        "chapters": [
+          {
+            "chapter_number": 1,
+            "chapter_title": "章名",
+            "brief_text": "章纲正文",
+            "suspense_density": "low | medium | high",
+            "cognitive_twist": 3
+          }  (cognitive_twist 范围 1-5)
+        ]
+      }
+    }
+  ]
+}"""
+
+    _SCHEMA_EN = """{
+  "answer": "Natural-language analysis or answer (required)",
+  "cited_evidence_indices": [{cited}],
+  "suggestions": [
+    {
+      "kind": "update_outline_volume | update_outline_chapters | review_outline_issue",
+      "title": "Suggestion title",
+      "summary": "One-sentence explanation",
+      "cited_evidence_indices": [{cited}],
+      "target_resource": "system",
+      "target_id": "Integer ID (system with display_type=outline)",
+      "delta": {
+        "volume_number": 1,
+        "volume_title": "Volume title",
+        "chapter_start": 1,
+        "chapter_end": 25,
+        "outline_text": "Volume outline text",
+        "chapters": [
+          {
+            "chapter_number": 1,
+            "chapter_title": "Chapter title",
+            "brief_text": "Chapter brief text",
+            "suspense_density": "low | medium | high",
+            "cognitive_twist": 3
+          }  (cognitive_twist range 1-5)
+        ]
+      }
+    }
+  ]
+}"""
+
+    _RULES_RESEARCH_ZH = (
+        "1. cited_evidence_indices 必须引用 [Evidence#N] 的索引，不能编造证据\n"
+        "2. suggestions 只在有充分证据时才生成；没有 suggestions 是正常结果\n"
+        "3. target_id 必须指向 display_type=outline 的 [System#ID]\n"
+        "4. delta 中只包含需要修改/新增的字段\n"
+        "5. 不要建议删除、合并或拆分操作\n"
+        "6. 卷纲内容写入 delta.outline_text；章纲内容写入 delta.chapters\n"
+        "7. volume_number、chapter_start、chapter_end、chapter_number 必须是 JSON 数字，cognitive_twist 必须是 1-5 的整数；不要用「第一卷」「第8回」等字符串\n"
+        "8. 如果找不到 display_type=outline 的 system，只输出 review_outline_issue 或在 answer 中说明先生成卷纲，不要生成可采纳的 update_outline_volume / update_outline_chapters"
+    )
+
+    _RULES_RESEARCH_EN = (
+        "1. cited_evidence_indices must reference [Evidence#N] entries that actually exist\n"
+        "2. Generate suggestions only when evidence is sufficient; no suggestions is a normal outcome\n"
+        "3. target_id must point to a [System#ID] whose display_type is outline\n"
+        "4. delta must include only fields that need to be added or changed\n"
+        "5. Do not suggest delete, merge, or split operations\n"
+        "6. Put volume-outline content in delta.outline_text and chapter briefs in delta.chapters\n"
+        "7. volume_number, chapter_start, chapter_end, chapter_number must be JSON numbers, cognitive_twist must be an integer 1-5; not strings\n"
+        "8. If no outline system is available, output review_outline_issue or explain that volume outlines must be generated first; do not create actionable update_outline_volume / update_outline_chapters"
+    )
+
+    _RULES_TOOL_LOOP_ZH = (
+        "1. 只能基于工具返回的证据提出建议，不能编造\n"
+        "2. 没有 suggestions 也是正常结果；若当前轮次是闲聊/能力询问，应默认返回空 suggestions\n"
+        "3. target_id 必须指向 display_type=outline 的 system ID\n"
+        "4. delta 中只包含需要修改/新增的字段\n"
+        "5. 不要建议删除、合并或拆分\n"
+        "6. 卷纲内容写入 delta.outline_text；章纲内容写入 delta.chapters\n"
+        "7. volume_number、chapter_start、chapter_end、chapter_number 必须是 JSON 数字，cognitive_twist 必须是 1-5 的整数；不要用「第一卷」「第8回」等字符串\n"
+        "8. 如果找不到 display_type=outline 的 system，只输出 review_outline_issue 或在 answer 中说明先生成卷纲"
+    )
+
+    _RULES_TOOL_LOOP_EN = (
+        "1. You may only propose suggestions based on evidence returned by tools\n"
+        "2. No suggestions is a normal result. For small talk or capability questions, default to an empty suggestions array\n"
+        "3. target_id must point to a system ID with display_type=outline\n"
+        "4. delta must include only fields that need to be added or changed\n"
+        "5. Do not suggest delete, merge, or split operations\n"
+        "6. Put volume-outline content in delta.outline_text and chapter briefs in delta.chapters\n"
+        "7. volume_number, chapter_start, chapter_end, chapter_number must be JSON numbers, cognitive_twist must be an integer 1-5; not strings\n"
+        "8. If no outline system is available, output review_outline_issue or explain that volume outlines must be generated first"
+    )
+
+    def render(self, locale: str, variant: str) -> str:
+        cited = "[0, 1]" if variant == "research" else "[]"
+        if locale == "zh":
+            header = "输出要求（JSON）" if variant == "research" else "最终回答格式（JSON）"
+            schema = self._SCHEMA_ZH.replace("{cited}", cited)
+            rules = self._RULES_RESEARCH_ZH if variant == "research" else self._RULES_TOOL_LOOP_ZH
+        else:
+            header = "Output format (JSON)" if variant == "research" else "Final answer format (JSON)"
+            schema = self._SCHEMA_EN.replace("{cited}", cited)
+            rules = self._RULES_RESEARCH_EN if variant == "research" else self._RULES_TOOL_LOOP_EN
+        return f"## {header}\n{schema}\n\n## 规则\n{rules}" if locale == "zh" else f"## {header}\n{schema}\n\n## Rules\n{rules}"
+
+
+def _get_output_format(snapshot: ScopeSnapshot) -> OutputFormatSchema:
+    """Return the appropriate output format entity for the current focus_variant."""
+    if snapshot.focus_variant == "outline":
+        return OutlineOutputFormat()
+    return GenericOutputFormat()
+
+
+# ---------------------------------------------------------------------------
+# Prompt locale registry — maps, texts, and templates
+# ---------------------------------------------------------------------------
+
 _QUICK_ACTION_FOCUS_ZH: dict[str, str] = {
     "scan_world_gaps": "重点找出世界模型中尚未覆盖但章节反复提到的设定、组织或概念。",
     "trace_recurring_signals": "重点追踪章节中反复出现但尚未入模的高频信号和规律。",
@@ -25,6 +300,9 @@ _QUICK_ACTION_FOCUS_ZH: dict[str, str] = {
     "review_drafts": "审查草稿中最值得优先处理的条目。",
     "normalize_terms": "检查草稿中的命名一致性并提出统一建议。",
     "fill_missing_fields": "找出草稿中缺失的关键字段并给出补全建议。",
+    "generate_volume_outlines": "重点生成或补全卷纲结构，使用 update_outline_volume 建议写入卷级大纲字段；volume_number/chapter_start/chapter_end 必须是整数。",
+    "generate_chapter_outlines": "重点生成或补全章纲列表，使用 update_outline_chapters 建议写入章节大纲；chapter_number/cognitive_twist 必须是整数。",
+    "review_outline": "重点审查卷纲/章纲的主线、节奏、转折和伏笔缺口。",
 }
 _QUICK_ACTION_FOCUS_EN: dict[str, str] = {
     "scan_world_gaps": "Focus on world details, organizations, or concepts that chapters mention repeatedly but the world model still does not cover.",
@@ -38,6 +316,9 @@ _QUICK_ACTION_FOCUS_EN: dict[str, str] = {
     "review_drafts": "Review the draft rows that are most worth handling first.",
     "normalize_terms": "Check naming consistency in drafts and suggest normalization.",
     "fill_missing_fields": "Find key missing draft fields and propose concrete completions.",
+    "generate_volume_outlines": "Focus on generating or completing volume-outline structure. Use update_outline_volume suggestions; volume_number/chapter_start/chapter_end must be integers.",
+    "generate_chapter_outlines": "Focus on generating or completing chapter-outline lists. Use update_outline_chapters suggestions; chapter_number/cognitive_twist must be integers.",
+    "review_outline": "Focus on reviewing plotline, pacing, turns, and foreshadowing gaps in volume/chapter outlines.",
 }
 
 _TASK_INTENT_HINTS = (
@@ -90,12 +371,14 @@ _FOCUS_LABELS_ZH = {
     "entity": "实体补完",
     "relationship": "关系梳理",
     "draft": "草稿整理",
+    "outline": "大纲探究",
 }
 _FOCUS_LABELS_EN = {
     "whole_book": "Whole-book research",
     "entity": "Entity completion",
     "relationship": "Relationship review",
     "draft": "Draft cleanup",
+    "outline": "Outline research",
 }
 _FOCUS_CAPABILITIES_ZH: dict[str, list[str]] = {
     "whole_book": [
@@ -118,6 +401,11 @@ _FOCUS_CAPABILITIES_ZH: dict[str, list[str]] = {
         "帮助检查命名统一、缺失字段和弱候选",
         "在你明确要求时生成草稿整理建议卡",
     ],
+    "outline": [
+        "分析当前卷纲/章纲结构",
+        "指出主线、节奏、转折与伏笔缺口",
+        "在证据充分时生成大纲建议卡",
+    ],
 }
 _FOCUS_CAPABILITIES_EN: dict[str, list[str]] = {
     "whole_book": [
@@ -139,6 +427,11 @@ _FOCUS_CAPABILITIES_EN: dict[str, list[str]] = {
         "Explain what this draft-cleanup workspace can help with",
         "Check naming consistency, missing fields, and weak candidates",
         "Generate draft-cleanup suggestion cards when you explicitly ask for them",
+    ],
+    "outline": [
+        "Analyze the current volume/chapter outline structure",
+        "Identify plotline, pacing, turn, and foreshadowing gaps",
+        "Generate outline suggestion cards when evidence is sufficient",
     ],
 }
 _PROFILE_INSTRUCTIONS_ZH: dict[str, str] = {
@@ -196,6 +489,14 @@ _FOCUS_INSTRUCTIONS_ZH: dict[str, str] = {
         "你的 suggestions 里的 target_id 必须指向草稿行的 ID。"
         "不要创建新实体（create_entity），只更新现有草稿。"
     ),
+    "outline": (
+        "用户正在进行大纲探究。围绕卷纲、章纲、主线推进、关键转折、章节范围和节奏结构进行分析。"
+        "suggestions 应优先使用 update_outline_volume 或 update_outline_chapters。"
+        "update_outline_volume/update_outline_chapters 的 target_id 必须指向 display_type=outline 的 system，不得指向 timeline/list/hierarchy system。"
+        "卷纲内容写入 delta.outline_text；章纲内容写入 delta.chapters；不要把大纲正文只写入 system.description。"
+        "volume_number、chapter_start、chapter_end、chapter_number、cognitive_twist 必须输出 JSON 数字，不要输出‘第一卷’、‘第8回’、‘二十三’等字符串。"
+        "如果没有可用的 outline system，只输出 review_outline_issue 或在 answer 中提示先生成卷纲，不要生成可采纳的大纲更新建议。"
+    ),
 }
 _FOCUS_INSTRUCTIONS_EN: dict[str, str] = {
     "whole_book": (
@@ -216,6 +517,13 @@ _FOCUS_INSTRUCTIONS_EN: dict[str, str] = {
         "The user is cleaning up drafts. Review draft rows and propose improvements. "
         "Focus on naming normalization, missing-field completion, and weak-candidate marking. "
         "Only make non-destructive local edit suggestions against existing draft rows. Do not suggest delete, merge, or split operations. target_id values in suggestions must point to draft-row IDs, and you must not create new entities in this mode."
+    ),
+    "outline": (
+        "The user is researching outlines. Analyze volume outlines, chapter briefs, plot progression, key turns, chapter ranges, and pacing structure. "
+        "Suggestions should primarily use update_outline_volume or update_outline_chapters. Their target_id must point to a system whose display_type is outline; never target timeline/list/hierarchy systems. "
+        "Put volume-outline content in delta.outline_text and chapter briefs in delta.chapters. Do not put outline text only into system.description. "
+        "volume_number, chapter_start, chapter_end, chapter_number, and cognitive_twist must be JSON numbers, not strings such as 'Volume 1' or 'Chapter 8'. "
+        "If no outline system is available, output review_outline_issue or explain that volume outlines must be generated first; do not create actionable outline-update suggestions."
     ),
 }
 _FOCUS_WORKFLOW_HINTS_ZH: dict[str, str] = {
@@ -244,6 +552,13 @@ _FOCUS_WORKFLOW_HINTS_ZH: dict[str, str] = {
         "3. 用 find(query=<草稿名称>, scope='story_text') 搜索正文证据来补全草稿\n"
         "4. 用 read(target_refs=[...]) 读取草稿行的完整状态\n"
         "5. 基于证据对草稿提出命名统一、字段补全建议"
+    ),
+    "outline": (
+        "1. 先浏览 auto-preload 中的 outline systems 和全书薄概览\n"
+        "2. 用 find(query=<卷名/关键剧情>, scope='all') 搜索大纲证据\n"
+        "3. 用 read(target_refs=[{type:'system', id:<大纲体系ID>}]) 读取当前大纲结构，确认目标 system 的 display_type=outline\n"
+        "4. 用 open(pack_id) 展开关键证据\n"
+        "5. 基于证据输出 update_outline_volume 或 update_outline_chapters 建议；所有编号字段必须是整数"
     ),
 }
 _FOCUS_WORKFLOW_HINTS_EN: dict[str, str] = {
@@ -414,49 +729,7 @@ $world_model_text
 以下证据由后端从章节和世界模型中检索。你只能引用这些证据，不能编造新证据。
 $evidence_text
 
-## 输出要求（JSON）
-{
-  "answer": "（必填）自然语言分析/回答",
-  "cited_evidence_indices": [0, 1],
-  "suggestions": [
-    {
-      "kind": "update_entity | create_entity | update_relationship | create_relationship | update_system | create_system",
-      "title": "建议标题",
-      "summary": "一句话说明",
-      "cited_evidence_indices": [0],
-      "target_resource": "entity | relationship | system",
-      "target_id": "整数ID（update 类必填；create 类为 null）",
-      "delta": {
-        "name": "（可选）",
-        "entity_type": "（可选）",
-        "description": "（可选）",
-        "aliases": ["（可选）"],
-        "label": "（可选，relationship）",
-        "source_id": "（可选，relationship create）",
-        "target_id": "（可选，relationship create）",
-        "source_name": "（可选，relationship create；当关系涉及新实体时填写名称）",
-        "target_name": "（可选，relationship create；当关系涉及新实体时填写名称）",
-        "source_entity_type": "（可选，relationship create；当 source_name 是新实体时填写类型）",
-        "target_entity_type": "（可选，relationship create；当 target_name 是新实体时填写类型）",
-        "constraints": ["（可选，system）"],
-        "display_type": "（可选，system）",
-        "attributes": [
-          {"key": "属性名", "surface": "可见值"}
-        ]
-      }
-    }
-  ]
-}
-
-## 规则
-1. cited_evidence_indices 必须引用 [Evidence#N] 的索引，不能编造证据
-2. suggestions 只在有充分证据时才生成；没有 suggestions 是正常结果
-3. target_id 必须引用上面的 [Entity#ID] / [Rel#ID] / [System#ID]
-4. delta 中只包含需要修改/新增的字段
-5. 不要建议删除、合并或拆分操作
-6. attributes 数组用于建议新增或更新实体属性（key-value对）
-7. 如果 create_relationship 涉及尚未存在的新实体，必须同时生成对应的 create_entity 建议，并在关系 delta 里填写 source_name / target_name
-8. 实体不只包括人物，也包括势力、组织、地点、物件、概念、规则等；不要把所有新实体默认写成人物
+$output_format
 """
             ),
             "tool_loop": Template(
@@ -477,56 +750,14 @@ canonical 名称/标签必须保持小说原语言。
 
 ## 工具
 - load_scope_snapshot(): 重新加载世界模型状态（一般不需要，已自动加载）
-- find(query, scope?): 搜索证据。scope 可选: "story_text"（正文片段）、"world_rows"（实体/关系/体系）、"drafts"（草稿质量审查）、"all"（默认）
+- find(query, scope?): Search evidence. Optional scope values: "story_text" (chapter excerpts), "world_rows" (entities / relationships / systems), "drafts" (draft-quality review), "outline" (volume/chapter outlines by number, e.g. "2" or "2-30"), "all" (default)
 - open(pack_id): 展开某个证据包的完整内容
 - read(target_refs): 读取实体/关系/体系的当前状态。参数: [{"type": "entity"|"relationship"|"system", "id": 整数}]
 
 ## 建议工作流程
 $workflow_hint
 
-## 最终回答格式（JSON）
-{
-  "answer": "（必填）自然语言分析/回答",
-  "cited_evidence_indices": [],
-  "suggestions": [
-    {
-      "kind": "update_entity | create_entity | update_relationship | create_relationship | update_system | create_system",
-      "title": "建议标题",
-      "summary": "一句话说明",
-      "cited_evidence_indices": [],
-      "target_resource": "entity | relationship | system",
-      "target_id": "整数ID（update 类必填；create 类为 null）",
-      "delta": {
-        "name": "（可选）",
-        "entity_type": "（可选）",
-        "description": "（可选）",
-        "aliases": ["（可选）"],
-        "label": "（可选，relationship）",
-        "source_id": "（可选，relationship create）",
-        "target_id": "（可选，relationship create）",
-        "source_name": "（可选，relationship create；当关系涉及新实体时填写名称）",
-        "target_name": "（可选，relationship create；当关系涉及新实体时填写名称）",
-        "source_entity_type": "（可选，relationship create；当 source_name 是新实体时填写类型）",
-        "target_entity_type": "（可选，relationship create；当 target_name 是新实体时填写类型）",
-        "constraints": ["（可选，system）"],
-        "display_type": "（可选，system）",
-        "attributes": [
-          {"key": "属性名", "surface": "可见值"}
-        ]
-      }
-    }
-  ]
-}
-
-## 规则
-1. 只能基于工具返回的证据提出建议，不能编造
-2. 没有 suggestions 也是正常结果；若当前轮次是闲聊/能力询问，应默认返回空 suggestions
-3. target_id 必须引用已知的实体/关系/体系 ID
-4. delta 中只包含需要修改/新增的字段
-5. 不要建议删除、合并或拆分
-6. attributes 数组用于建议新增或更新实体属性（key-value对）
-7. 如果 create_relationship 涉及尚未存在的新实体，必须同时生成对应的 create_entity 建议，并在关系 delta 里填写 source_name / target_name
-8. 实体不只包括人物，也包括势力、组织、地点、物件、概念、规则等；不要把所有新实体默认写成人物
+$output_format
 """
             ),
         },
@@ -660,49 +891,7 @@ $world_model_text
 The evidence below was retrieved from chapters and the world model by the backend. You may only cite this evidence and must not invent new evidence.
 $evidence_text
 
-## Output format (JSON)
-{
-  "answer": "Natural-language analysis or answer (required)",
-  "cited_evidence_indices": [0, 1],
-  "suggestions": [
-    {
-      "kind": "update_entity | create_entity | update_relationship | create_relationship | update_system | create_system",
-      "title": "Suggestion title",
-      "summary": "One-sentence explanation",
-      "cited_evidence_indices": [0],
-      "target_resource": "entity | relationship | system",
-      "target_id": "Integer ID (required for update kinds; null for create kinds)",
-      "delta": {
-        "name": "(optional)",
-        "entity_type": "(optional)",
-        "description": "(optional)",
-        "aliases": ["(optional)"],
-        "label": "(optional, relationship)",
-        "source_id": "(optional, relationship create)",
-        "target_id": "(optional, relationship create)",
-        "source_name": "(optional, relationship create; required when the relationship refers to a new entity)",
-        "target_name": "(optional, relationship create; required when the relationship refers to a new entity)",
-        "source_entity_type": "(optional, relationship create; required when source_name is a new entity)",
-        "target_entity_type": "(optional, relationship create; required when target_name is a new entity)",
-        "constraints": ["(optional, system)"],
-        "display_type": "(optional, system)",
-        "attributes": [
-          {"key": "Attribute name", "surface": "Visible value"}
-        ]
-      }
-    }
-  ]
-}
-
-## Rules
-1. cited_evidence_indices must reference [Evidence#N] entries that actually exist
-2. Generate suggestions only when evidence is sufficient; no suggestions is a normal outcome
-3. target_id values must reference the [Entity#ID] / [Rel#ID] / [System#ID] entries above
-4. delta must include only fields that need to be added or changed
-5. Do not suggest delete, merge, or split operations
-6. The attributes array is only for proposing added or updated entity attributes (key-value pairs)
-7. If create_relationship introduces a not-yet-existing entity, you must also emit the matching create_entity suggestion and fill source_name / target_name in the relationship delta
-8. Entities are not limited to people; they can also be factions, organizations, locations, objects, concepts, and rules. Do not default every new entity to Character
+$output_format
 """
             ),
             "tool_loop": Template(
@@ -723,56 +912,14 @@ Canonical names and labels must remain in the novel's original language.
 
 ## Tools
 - load_scope_snapshot(): Reload world-model state (entities, relationships, systems, drafts). Usually unnecessary because it is already loaded.
-- find(query, scope?): Search evidence. Optional scope values: "story_text" (chapter excerpts), "world_rows" (entities / relationships / systems), "drafts" (draft-quality review), "all" (default)
+- find(query, scope?): Search evidence. Optional scope values: "story_text" (chapter excerpts), "world_rows" (entities / relationships / systems), "drafts" (draft-quality review), "outline" (volume/chapter outlines by number, e.g. "2" or "2-30"), "all" (default)
 - open(pack_id): Expand the full contents of an evidence pack
 - read(target_refs): Read the current live state of entities / relationships / systems. Argument shape: [{"type": "entity"|"relationship"|"system", "id": integer}]
 
 ## Suggested workflow
 $workflow_hint
 
-## Final answer format (JSON)
-{
-  "answer": "Natural-language analysis or answer (required)",
-  "cited_evidence_indices": [],
-  "suggestions": [
-    {
-      "kind": "update_entity | create_entity | update_relationship | create_relationship | update_system | create_system",
-      "title": "Suggestion title",
-      "summary": "One-sentence explanation",
-      "cited_evidence_indices": [],
-      "target_resource": "entity | relationship | system",
-      "target_id": "Integer ID (required for update kinds; null for create kinds)",
-      "delta": {
-        "name": "(optional)",
-        "entity_type": "(optional)",
-        "description": "(optional)",
-        "aliases": ["(optional)"],
-        "label": "(optional, relationship)",
-        "source_id": "(optional, relationship create)",
-        "target_id": "(optional, relationship create)",
-        "source_name": "(optional, relationship create; required when the relationship refers to a new entity)",
-        "target_name": "(optional, relationship create; required when the relationship refers to a new entity)",
-        "source_entity_type": "(optional, relationship create; required when source_name is a new entity)",
-        "target_entity_type": "(optional, relationship create; required when target_name is a new entity)",
-        "constraints": ["(optional, system)"],
-        "display_type": "(optional, system)",
-        "attributes": [
-          {"key": "Attribute name", "surface": "Visible value"}
-        ]
-      }
-    }
-  ]
-}
-
-## Rules
-1. You may only propose suggestions based on evidence returned by tools
-2. No suggestions is a normal result. For small talk or capability questions, default to an empty suggestions array
-3. target_id values must reference known entity / relationship / system IDs
-4. delta must include only fields that need to be added or changed
-5. Do not suggest delete, merge, or split operations
-6. The attributes array is only for proposing added or updated entity attributes (key-value pairs)
-7. If create_relationship introduces a not-yet-existing entity, you must also emit the matching create_entity suggestion and fill source_name / target_name in the relationship delta
-8. Entities are not limited to people; they can also be factions, organizations, locations, objects, concepts, and rules. Do not default every new entity to Character
+$output_format
 """
             ),
         },
@@ -1208,6 +1355,7 @@ def build_copilot_system_prompt(
         locale_instr=locale_instr,
         world_model_text=world_model_text,
         evidence_text=evidence_text,
+        output_format=_get_output_format(snapshot).render(interaction_locale, "research"),
     )
 
 
@@ -1375,4 +1523,5 @@ def build_tool_loop_system_prompt(
         intent_behavior=intent_behavior,
         locale_instr=locale_instr,
         workflow_hint=workflow_hint,
+        output_format=_get_output_format(snapshot).render(interaction_locale, "tool_loop"),
     )

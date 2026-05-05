@@ -925,6 +925,8 @@ def derive_scenario(mode: str, scope: str, context: dict | None) -> str:
     focus_variant = derive_focus_variant(mode, scope, context)
     if focus_variant == "draft":
         return "draft_cleanup"
+    if focus_variant == "outline":
+        return "outline"
     if focus_variant == "whole_book":
         return "whole_book"
     if focus_variant == "relationship":

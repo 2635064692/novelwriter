@@ -62,6 +62,14 @@ export function getCopilotSuggestionKindMeta(kind: string, locale?: UiLocale) {
         chipClassName: 'border-[hsl(var(--foreground)/0.12)] bg-[hsl(var(--foreground)/0.05)] text-foreground/74',
         accentClassName: 'bg-[hsl(var(--foreground)/0.38)]',
       }
+    case 'update_outline_volume':
+    case 'update_outline_chapters':
+    case 'review_outline_issue':
+      return {
+        label: translateUiMessage(effectiveLocale, 'copilot.suggestion.kind.outline'),
+        chipClassName: 'border-[hsl(var(--foreground)/0.12)] bg-[hsl(var(--foreground)/0.04)] text-foreground/72',
+        accentClassName: 'bg-[hsl(var(--foreground)/0.34)]',
+      }
     case 'create_system':
     case 'update_system':
     case 'system_update':

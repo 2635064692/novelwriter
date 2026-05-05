@@ -7,10 +7,11 @@ import { HierarchyEditor } from '@/components/world-model/systems/HierarchyEdito
 import { LegacyGraphReadonly } from '@/components/world-model/systems/LegacyGraphReadonly'
 import { TimelineEditor } from '@/components/world-model/systems/TimelineEditor'
 import { ListEditor } from '@/components/world-model/systems/ListEditor'
+import { OutlineEditor } from '@/components/world-model/systems/OutlineEditor'
 import { useUpdateSystem, useDeleteSystem } from '@/hooks/world/useSystems'
 import { isLegacyGraphDisplayType } from '@/lib/worldSystemDisplay'
 import { useUiLocale } from '@/contexts/UiLocaleContext'
-import type { WorldSystem } from '@/types/api'
+import type { WorldSystem, OutlineVolume } from '@/types/api'
 
 type HierarchyEditorData = Parameters<typeof HierarchyEditor>[0]['data']
 type TimelineEditorData = Parameters<typeof TimelineEditor>[0]['data']
@@ -43,6 +44,8 @@ export function SystemEditor({ novelId, system, onBack }: {
     editorContent = <TimelineEditor data={system.data as unknown as TimelineEditorData} onUpdate={saveData} />
   } else if (system.display_type === 'list') {
     editorContent = <ListEditor data={system.data as unknown as ListEditorData} onUpdate={saveData} />
+  } else if (system.display_type === 'outline') {
+    editorContent = <OutlineEditor key={system.id} volume={system.data as unknown as OutlineVolume} status={system.status} onUpdate={saveData} />
   } else {
     editorContent = (
       <div className="rounded-2xl border border-[var(--nw-glass-border)] bg-[var(--nw-glass-bg)] px-4 py-3 text-sm text-muted-foreground">
