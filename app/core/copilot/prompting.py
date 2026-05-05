@@ -750,7 +750,7 @@ canonical 名称/标签必须保持小说原语言。
 
 ## 工具
 - load_scope_snapshot(): 重新加载世界模型状态（一般不需要，已自动加载）
-- find(query, scope?): 搜索证据。scope 可选: "story_text"（正文片段）、"world_rows"（实体/关系/体系）、"drafts"（草稿质量审查）、"all"（默认）
+- find(query, scope?): Search evidence. Optional scope values: "story_text" (chapter excerpts), "world_rows" (entities / relationships / systems), "drafts" (draft-quality review), "outline" (volume/chapter outlines by number, e.g. "2" or "2-30"), "all" (default)
 - open(pack_id): 展开某个证据包的完整内容
 - read(target_refs): 读取实体/关系/体系的当前状态。参数: [{"type": "entity"|"relationship"|"system", "id": 整数}]
 
@@ -912,7 +912,7 @@ Canonical names and labels must remain in the novel's original language.
 
 ## Tools
 - load_scope_snapshot(): Reload world-model state (entities, relationships, systems, drafts). Usually unnecessary because it is already loaded.
-- find(query, scope?): Search evidence. Optional scope values: "story_text" (chapter excerpts), "world_rows" (entities / relationships / systems), "drafts" (draft-quality review), "all" (default)
+- find(query, scope?): Search evidence. Optional scope values: "story_text" (chapter excerpts), "world_rows" (entities / relationships / systems), "drafts" (draft-quality review), "outline" (volume/chapter outlines by number, e.g. "2" or "2-30"), "all" (default)
 - open(pack_id): Expand the full contents of an evidence pack
 - read(target_refs): Read the current live state of entities / relationships / systems. Argument shape: [{"type": "entity"|"relationship"|"system", "id": integer}]
 
